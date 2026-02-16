@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+always add types in the lib/types to have a centralised place for all data strutures

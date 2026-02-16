@@ -1,0 +1,30 @@
+---
+description: Project rules the AI must always follow
+alwaysApply: true
+---
+
+# Project Rules
+
+Rules in this folder (`.cursor/rules/`) are read by Cursor and applied when working in this project.
+
+## Adding rules
+
+- **Always apply**: Use a `.mdc` file with `alwaysApply: true` in the frontmatter so the rule is used in every conversation.
+- **File-specific**: Use `globs: "**/*.ts"` (or other patterns) and `alwaysApply: false` so the rule applies only when matching files are relevant.
+- Keep each rule under ~50 lines and focused on one concern.
+
+## Example rule structure
+
+```markdown
+---
+description: What this rule enforces
+globs: "**/*.ts"   # optional; omit for always-apply
+alwaysApply: false
+---
+
+# Rule title
+
+Your requirements and examples here.
+```
+
+Add or edit `.mdc` files in `.cursor/rules/` to define rules you want followed.
