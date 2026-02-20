@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+always check constants functions for any helper functions if the exisit reuse if not and can be reused add it to the function.ts and call it from there

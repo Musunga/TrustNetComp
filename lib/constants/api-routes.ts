@@ -27,6 +27,9 @@ export const API_ROUTES = {
     GET: (id: string | number) => `/api/companies/${id}`,
     UPDATE: (id: string | number) => `/api/companies/${id}`,
     DELETE: (id: string | number) => `/api/companies/${id}`,
+    MEMBERS_STATS: (companyId: string) =>
+      `/api/companies/${companyId}/members/stats`,
+    MEMBERS: (companyId: string) => `/api/companies/${companyId}/members`,
   },
 
   // Frameworks (compliance frameworks)
@@ -35,7 +38,10 @@ export const API_ROUTES = {
     CREATE: "/api/frameworks",
     GET: (id: string | number) => `/api/frameworks/${id}`,
     UPDATE: (id: string | number) => `/api/frameworks/${id}`,
+    GET_COMPANY:(id: string | number)=>`/api/frameworks/company/${id}`,
     DELETE: (id: string | number) => `/api/frameworks/${id}`,
+    SELECT: "/api/frameworks/select",
+    PREVIEW: (id: string | number) => `/api/frameworks/preview/${id}`,
   },
 
   // Assessments
@@ -65,5 +71,26 @@ export const API_ROUTES = {
   TECHNICAL_REVIEW: {
     LIST: "/api/technical-review",
     GET: (id: string | number) => `/api/technical-review/${id}`,
+  },
+
+  // Compliance progress (control progress PATCH)
+  COMPLIANCE_PROGRESS: {
+    PATCH: (controlProgressId: string) =>
+      `/api/compliance-progress/${controlProgressId}`,
+  },
+
+  // User roles
+  USER_ROLES: {
+    ROLES: "/api/user-roles/roles",
+  },
+
+  // Invitations
+  INVITATIONS: {
+    CREATE: "/api/invitations",
+    BY_COMPANY: (companyId: string) =>
+      `/api/invitations/company/${companyId}`,
+    DELETE: (invitationId: string) => `/api/invitations/${invitationId}`,
+    RESEND: (invitationId: string) => `/api/invitations/${invitationId}/resend`,
+    ACCEPT: (invitationId: string) => `/api/invitations/${invitationId}/accept`,
   },
 } as const;

@@ -1,113 +1,96 @@
+"use client"
+
+import { useAtomValue } from "jotai"
+import { useEffect, useState } from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Mail, UserPlus, MoreVertical } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
+import CompanySelector from "@/components/screens/CompanySelector"
+import Team from "@/components/screens/Team"
+import Invitation from "@/components/screens/Invitation"
+import { activeCompanyAtom } from "@/lib/store/auth"
+import { fetchCompanyMembersStats } from "@/lib/actions/companies"
+import type { CompanyMembersStatsResponse } from "@/lib/types/company-members-stats"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function TeamPage() {
+  const activeCompany = useAtomValue(activeCompanyAtom)
+  const [statsData, setStatsData] = useState<CompanyMembersStatsResponse | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!activeCompany?.id) {
+      setStatsData(null)
+      setStatsLoading(false)
+      return
+    }
+    setStatsLoading(true)
+    fetchCompanyMembersStats(activeCompany.id)
+      .then(setStatsData)
+      .catch(() => setStatsData(null))
+      .finally(() => setStatsLoading(false))
+  }, [activeCompany?.id])
+
+  const statsRow = (
+    <div className="flex w-full max-w-[50%] flex-col md:flex-row md:items-center md:justify-between md:divide-x divide-border">
+      {statsLoading || !statsData ? (
+        <>
+          <div className="flex-1 py-4 md:py-2 md:pr-6">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="mt-1 h-8 w-8" />
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:px-6">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="mt-1 h-8 w-8" />
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:px-6">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="mt-1 h-8 w-8" />
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:pl-6">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="mt-1 h-8 w-8" />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex-1 py-4 md:py-2 md:pr-6">
+            <div className="text-sm text-muted-foreground">Total</div>
+            <div className="mt-1 text-2xl font-bold">{statsData.stats.total}</div>
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:px-6">
+            <div className="text-sm text-muted-foreground">Active</div>
+            <div className="mt-1 text-2xl font-bold">{statsData.stats.active}</div>
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:px-6">
+            <div className="text-sm text-muted-foreground">Invited</div>
+            <div className="mt-1 text-2xl font-bold">{statsData.stats.invited}</div>
+          </div>
+          <div className="flex-1 py-4 md:py-2 md:pl-6">
+            <div className="text-sm text-muted-foreground">Suspended</div>
+            <div className="mt-1 text-2xl font-bold">{statsData.stats.suspended}</div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
   return (
     <DashboardShell>
       <div className="flex flex-col space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Team Management</h2>
             <p className="text-muted-foreground">Invite and manage members of your company compliance team.</p>
           </div>
-          <Button>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Invite Member
-          </Button>
+          <div className="flex items-center gap-2">
+            <CompanySelector />
+          </div>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-3">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Members</CardTitle>
-              <CardDescription>Current members of Acme Inc's compliance team.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {[
-                  { name: "John Doe", email: "john@acme.inc", role: "Admin", status: "Active" },
-                  { name: "Jane Smith", email: "jane@acme.inc", role: "Technical", status: "Active" },
-                  { name: "Robert Wilson", email: "robert@acme.inc", role: "Member", status: "Pending" },
-                ].map((member, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarFallback>
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">{member.name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="hidden md:flex flex-col items-end gap-1">
-                        <Badge variant={member.role === "Admin" ? "default" : "secondary"}>{member.role}</Badge>
-                        <span className="text-xs text-muted-foreground">{member.status}</span>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit Role</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Remove</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {statsRow}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Invite Member</CardTitle>
-              <CardDescription>Send an invitation to join the team.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="colleague@acme.inc" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                  <option>Member</option>
-                  <option>Technical</option>
-                  <option>Admin</option>
-                </select>
-              </div>
-              <Button className="w-full">
-                <Mail className="mr-2 h-4 w-4" />
-                Send Invitation
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="grid gap-8 md:grid-cols-4">
+          <Team />
+          <Invitation />
         </div>
       </div>
     </DashboardShell>

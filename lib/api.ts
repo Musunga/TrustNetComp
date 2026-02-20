@@ -1,9 +1,16 @@
 import axios from "axios";
+import { cookies } from "next/headers"
 import { ACCESS_TOKEN_COOKIE_NAME, BASE_URL } from "./constants/variables";
 
 // In the browser, use relative URLs so Next.js rewrites proxy to the backend,
 // avoiding CORS issues. On the server, use BASE_URL.
 const computedBaseURL = typeof window === "undefined" ? BASE_URL : "";
+
+export async function getAuthHeaders(): Promise<{ Authorization?: string} > {
+  const token = (await cookies()).get(ACCESS_TOKEN_COOKIE_NAME)?.value
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
 
 export const api = axios.create({
   baseURL: computedBaseURL,

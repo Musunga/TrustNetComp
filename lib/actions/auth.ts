@@ -1,6 +1,8 @@
+"use server"
+
 import api from "../api";
 import { API_ROUTES } from "../constants/api-routes";
-import { ACCESS_TOKEN_COOKIE_NAME } from "../constants/variables";
+import { ACCESS_TOKEN_COOKIE_NAME, AUTH_SESSION_STORAGE_KEY, ACTIVE_COMPANY_STORAGE_KEY } from "../constants/variables";
 import type { LoginRequest, LoginResponseI } from "../types/auth";
 
 export const login = async (
@@ -25,10 +27,11 @@ export const login = async (
     }
 };
 
-export const logout = () => {
+export const logout = async () => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(ACCESS_TOKEN_COOKIE_NAME);
-  // Clear cookie so middleware sees user as logged out (like binit-admin flow)
+  localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
   document.cookie = `${ACCESS_TOKEN_COOKIE_NAME}=; path=/; max-age=0`;
   window.location.href = "/login";
 };

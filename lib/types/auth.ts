@@ -5,14 +5,23 @@ export interface LoginRequest {
 
 
 export interface LoginResponseI {
-  token:                    string;
-  refreshToken:             string;
-  user:                     UserI;
-  memberships:              MembershipI[];
-  activeMembership:         null;
-  selectedCompanyId:        null;
+  token: string;
+  refreshToken: string;
+  user: UserI;
+  memberships: MembershipI[];
+  activeMembership: MembershipI | null;
+  selectedCompanyId: string | null;
   requiresCompanySelection: boolean;
-  message:                  string;
+  message: string;
+}
+
+export interface AuthSessionI {
+  user: UserI;
+  memberships: MembershipI[];
+  activeMembership: MembershipI | null;
+  selectedCompanyId: string | null;
+  requiresCompanySelection: boolean;
+  message: string;
 }
 
 export interface MembershipI {

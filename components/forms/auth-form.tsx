@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { useSetAtom } from "jotai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,9 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { login as loginAction } from "@/lib/actions/auth"
 import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables"
+import { authSessionAtom } from "@/lib/store/auth"
 
 export function AuthForm() {
   const router = useRouter()
+  const setAuthSession = useSetAtom(authSessionAtom)
   const [isLoading, setIsLoading] = React.useState(false)
   const [step, setStep] = React.useState(0)
   const totalSteps = 9
@@ -47,8 +50,14 @@ export function AuthForm() {
     const password = (formData.get("password") as string) ?? ""
     try {
       const data = await loginAction(email, password)
-      console.log("data", data)
-      // Store the access token in a cookie so middleware and API calls recognize the user
+      setAuthSession({
+        user: data.user,
+        memberships: data.memberships,
+        activeMembership: data.activeMembership,
+        selectedCompanyId: data.selectedCompanyId,
+        requiresCompanySelection: data.requiresCompanySelection,
+        message: data.message,
+      })
       const maxAge = 60 * 60 * 24 // 24 hours
       document.cookie = `${ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(data.token)}; path=/; max-age=${maxAge}; SameSite=Lax`
       router.push("/dashboard")

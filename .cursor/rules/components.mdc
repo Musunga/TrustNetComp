@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+always add components to directory components/screens unless its a commonly shared component add to shared

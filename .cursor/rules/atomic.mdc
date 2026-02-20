@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+for components that can exist as a component create a new component as opposed to adding everything in one component

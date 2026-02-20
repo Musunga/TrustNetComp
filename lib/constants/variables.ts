@@ -15,3 +15,9 @@ export const NODE_ENV = process.env.NODE_ENV || "development";
 /** Cookie name for the access token (used by middleware and auth). */
 export const ACCESS_TOKEN_COOKIE_NAME = "access_token";
 
+/** localStorage key for auth session (user, memberships, etc.) – no tokens. */
+export const AUTH_SESSION_STORAGE_KEY = "auth-session";
+
+/** localStorage key for the currently selected company (full CompanyI). */
+export const ACTIVE_COMPANY_STORAGE_KEY = "active-company";
+
