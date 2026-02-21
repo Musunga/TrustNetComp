@@ -12,7 +12,7 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-16 flex items-center border-b sticky top-0 bg-background/95 backdrop-blur z-50">
         <Link className="flex items-center justify-center" href="/">
-          <BrandLogo className="h-6 transform origin-left scale-[8]" width={120} height={32} priority />
+          <BrandLogo className="h-8 w-auto" width={120} height={32} priority />
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
           <Link className="text-sm font-medium hover:text-primary transition-colors" href="#features">

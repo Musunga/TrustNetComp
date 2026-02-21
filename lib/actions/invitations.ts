@@ -1,6 +1,6 @@
 "use server"
 
-import api, { getAuthHeaders } from "../api"
+import api, { getAuthHeaders, getApiErrorMessage } from "../api"
 import { API_ROUTES } from "../constants/api-routes"
 import type { UserRolesResponse } from "../types/user-roles"
 import type {
@@ -58,8 +58,12 @@ export async function resendInvitation(
 }
 
 export async function acceptInvitation(
-  invitationId: string,
   body: AcceptInvitationBody
 ): Promise<void> {
-  await api.post(API_ROUTES.INVITATIONS.ACCEPT(invitationId), body)
+  try {
+    await api.post(API_ROUTES.INVITATIONS.ACCEPT, body)
+  } catch (error) {
+    const message = getApiErrorMessage(error)
+    throw new Error(message ?? "Failed to accept invitation.")
+  }
 }

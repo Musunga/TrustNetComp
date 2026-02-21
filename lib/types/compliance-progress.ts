@@ -4,3 +4,8 @@ export interface ComplianceProgressPatchBody {
   attachedEvidence: string[]
   assignedToComment: string
 }
+
+export interface AssignControlProgressBody {
+  companyId: string
+  memberId: string
+}

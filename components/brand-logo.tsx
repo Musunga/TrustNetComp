@@ -14,9 +14,12 @@ type BrandLogoProps = {
   priority?: boolean
 }
 
+const DEFAULT_LOGO = '/logo.png'
+const DEFAULT_LOGO_DARK   = '/logo-dark.png'
+
 export function BrandLogo({
-  lightSrc = '/logo.png',
-  darkSrc = '/logo-dark.png',
+  lightSrc = DEFAULT_LOGO,
+  darkSrc = DEFAULT_LOGO_DARK,
   alt = 'TrustNetComp',
   className,
   width = 120,

@@ -12,7 +12,7 @@ function InvitedPageContent({
 }) {
   const { id } = use(params)
   const searchParams = useSearchParams()
-  const token = searchParams.get("token") || ""
+  const token = searchParams.get("id") || ""
 
   return (
     <div className="container mx-auto relative flex h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
@@ -20,9 +20,7 @@ function InvitedPageContent({
         <div className="absolute inset-0 bg-primary" />
         <div className="relative z-20 flex items-center text-lg font-medium">
           <BrandLogo
-            lightSrc="/logo-dark.png"
-            darkSrc="/logo-dark.png"
-            className="h-6 transform origin-left scale-[12]"
+            className="h-10 w-auto"
             width={140}
             height={36}
             priority
@@ -46,7 +44,7 @@ function InvitedPageContent({
               Complete your profile to join the compliance team
             </p>
           </div>
-          <InvitationAcceptanceForm invitationId={id} token={token} />
+          <InvitationAcceptanceForm invitationId={id ?? token} />
         </div>
       </div>
     </div>

@@ -1,12 +1,15 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { assignControlProgress } from "@/lib/actions/compliance-progress"
+import { fetchCompanyMembers } from "@/lib/actions/companies"
 import { fetchAssessmentDetails, patchComplianceProgress } from "@/lib/actions/frameworks"
 import type {
   AssessmentDetail,
   AssessmentControl,
   AssessmentFunction,
 } from "@/lib/types/assessment-detail"
+import type { CompanyMember } from "@/lib/types/company-members"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Collapsible,
@@ -26,24 +29,24 @@ import {
 } from "@/components/ui/table"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ControlStatusSheet } from "@/components/shared/ControlStatusSheet"
+import { FileUpload } from "@/components/shared/FileUpload"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Shield, AlertCircle, RefreshCw, ClipboardList, Calendar, ChevronDown } from "lucide-react"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Shield, AlertCircle, RefreshCw, ClipboardList, Calendar, ChevronDown, UserPlus, PenLine, Upload, Loader2, User } from "lucide-react"
+import { toast } from "sonner"
+import { complianceStatusVariant } from "@/lib/constants/functions"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
 import { ViewDefinition, ViewOrchestrator } from "../shared/Pageview"
 import { ControlFunctionsList } from "./ControlFunctionsList"
@@ -63,158 +66,39 @@ function formatDate(iso: string): string {
   })
 }
 
-function statusVariant(code: string): "default" | "secondary" | "destructive" | "success" | "outline" {
-  const c = (code ?? "").toUpperCase().replace(/-/g, "_")
-  if (c === "COMPLIANT" || c === "FULLY_COMPLIANT") return "success"
-  if (c === "PARTIAL" || c === "IN_PROGRESS") return "secondary"
-  if (c === "NOT_COMPLIANT" || c === "NON_COMPLIANT") return "destructive"
-  return "outline"
+function isCompliant(statusCode: string): boolean {
+  const c = (statusCode ?? "").toUpperCase().replace(/-/g, "_")
+  return c === "COMPLIANT" || c === "FULLY_COMPLIANT"
 }
 
-const COMPLIANCE_OPTIONS = [
-  { value: "COMPLIANT", label: "Compliant" },
-  { value: "NOT_COMPLIANT", label: "Non-compliant" },
-] as const
+type AssignedToRaw = string | null | { id?: string; user?: { name?: string; firstName?: string; lastName?: string; email?: string } }
 
-function ControlStatusModal({
-  control,
-  open,
-  onOpenChange,
-  onSave,
-}: {
-  control: AssessmentControl | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave?: (payload: {
-    statusCode: string
-    assignedToComment: string
-    attachedEvidence: string[]
-  }) => Promise<void>
-}) {
-  const [status, setStatus] = React.useState<string>("")
-  const [assignedToComment, setAssignedToComment] = React.useState<string>("")
-  const [files, setFiles] = React.useState<File[]>([])
-  const [saving, setSaving] = React.useState(false)
-  const [saveError, setSaveError] = React.useState<string | null>(null)
+function getAssignedToId(raw: AssignedToRaw): string | null {
+  if (raw == null) return null
+  if (typeof raw === "string") return raw
+  if (typeof raw === "object" && typeof raw.id === "string") return raw.id
+  return null
+}
 
-  React.useEffect(() => {
-    if (open && control) {
-      setStatus(control.progress?.status?.code ?? "")
-      setAssignedToComment(control.progress?.assignedToComment ?? "")
-      setFiles([])
-      setSaveError(null)
-    }
-  }, [open, control])
-
-  async function handleSave() {
-    if (!status) return
-    setSaveError(null)
-    setSaving(true)
-    try {
-      await onSave?.({
-        statusCode: status,
-        assignedToComment: assignedToComment.trim(),
-        attachedEvidence: [],
-      })
-      onOpenChange(false)
-    } catch {
-      setSaveError("Failed to update. Please try again.")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Update control status</DialogTitle>
-          {control ? (
-            <DialogDescription asChild>
-              <div className="space-y-2">
-                <span className="font-mono text-xs">{control.code}</span>
-                <p className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
-                  {control.question}
-                </p>
-                {control.requiredEvidence?.length > 0 ? (
-                  <div className="text-xs text-muted-foreground">
-                    <span className="font-medium">Required documents:</span>
-                    <ul className="mt-1 list-inside list-disc space-y-0.5">
-                      {control.requiredEvidence.map((doc, i) => (
-                        <li key={i}>{doc}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            </DialogDescription>
-          ) : null}
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="status">Compliance status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger id="status" className="w-full">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPLIANCE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="comment">Comment</Label>
-            <Textarea
-              id="comment"
-              placeholder="e.g. All controls have been implemented and documented."
-              value={assignedToComment}
-              onChange={(e) => setAssignedToComment(e.target.value)}
-              rows={3}
-              className="resize-none"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Upload images (optional)</Label>
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="text-muted-foreground w-full max-w-xs text-sm file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground file:hover:bg-primary/90"
-                onChange={(e) => setFiles(e.target.files ? Array.from(e.target.files) : [])}
-              />
-              {files.length > 0 && (
-                <p className="text-xs text-muted-foreground">{files.length} file(s) selected</p>
-              )}
-            </div>
-          </div>
-          {saveError && (
-            <p className="text-sm text-destructive">{saveError}</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !status}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+function getAssignedToUserFromRaw(raw: AssignedToRaw): { name: string; email?: string } | null {
+  if (raw == null || typeof raw !== "object" || !raw.user || typeof raw.user !== "object") return null
+  const u = raw.user
+  const name = [u.name, u.firstName, u.lastName].filter(Boolean).join(" ").trim() || "—"
+  return { name, email: typeof u.email === "string" ? u.email : undefined }
 }
 
 function FunctionSection({
   fn,
   onOpenActionModal,
+  onAssign,
+  onUploadEvidence,
+  onViewAssignee,
 }: {
   fn: AssessmentFunction
   onOpenActionModal?: (control: AssessmentControl) => void
+  onAssign?: (control: AssessmentControl) => void
+  onUploadEvidence?: (control: AssessmentControl) => void
+  onViewAssignee?: (control: AssessmentControl) => void
 }) {
   const areas = fn.controlAreas ?? []
   const hasControls = areas.some((a) => (a.controls?.length ?? 0) > 0)
@@ -258,18 +142,28 @@ function FunctionSection({
                 const statusCode = control.progress?.status?.code ?? ""
                 const statusName = (control.progress?.status?.name ?? statusCode) || "—"
                 const completion = control.progress?.completionPercentage ?? 0
+                const compliant = isCompliant(statusCode)
+                const isAssigned = !!control.progress?.assignedTo
                 return (
                   <TableRow key={control.id}>
                     <TableCell className="py-2 font-mono text-xs text-muted-foreground">
                       {control.code}
                     </TableCell>
                     <TableCell className="min-w-[280px] max-w-[50%] py-2 text-sm">
-                      <span className="whitespace-normal wrap-break-word">
-                        {control.question}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="whitespace-normal wrap-break-word">
+                          {control.question}
+                        </span>
+                        {isAssigned && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground">
+                            <User className="h-3.5 w-3.5" aria-hidden />
+                            Assigned
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="py-2">
-                      <Badge variant={statusVariant(statusCode)} className="text-xs">
+                      <Badge variant={complianceStatusVariant(statusCode)} className="text-xs">
                         {statusName}
                       </Badge>
                     </TableCell>
@@ -277,14 +171,42 @@ function FunctionSection({
                       {completion}%
                     </TableCell>
                     <TableCell className="py-2 pr-2 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => onOpenActionModal?.(control)}
-                      >
-                        Action
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                          >
+                            Action
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {isAssigned && (
+                            <DropdownMenuItem onClick={() => onViewAssignee?.(control)}>
+                              <User className="mr-2 h-4 w-4" />
+                              View assignee
+                            </DropdownMenuItem>
+                          )}
+                          {compliant ? (
+                            <DropdownMenuItem onClick={() => onUploadEvidence?.(control)}>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload evidence
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              <DropdownMenuItem onClick={() => onOpenActionModal?.(control)}>
+                                <PenLine className="mr-2 h-4 w-4" />
+                                Update status
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onAssign?.(control)}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Assign
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 )
@@ -304,6 +226,15 @@ export default function AssessmentDetails({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null)
   const [selectedFunction, setSelectedFunction] = useState<AssessmentFunction | null>(null)
   const [actionModalControl, setActionModalControl] = useState<AssessmentControl | null>(null)
+  const [uploadEvidenceControl, setUploadEvidenceControl] = useState<AssessmentControl | null>(null)
+  const [uploadEvidenceFiles, setUploadEvidenceFiles] = useState<File[]>([])
+  const [assignControl, setAssignControl] = useState<AssessmentControl | null>(null)
+  const [assignMembers, setAssignMembers] = useState<CompanyMember[]>([])
+  const [assignMembersLoading, setAssignMembersLoading] = useState(false)
+  const [assigningMemberId, setAssigningMemberId] = useState<string | null>(null)
+  const [viewAssigneeControl, setViewAssigneeControl] = useState<AssessmentControl | null>(null)
+  const [assigneeMember, setAssigneeMember] = useState<CompanyMember | null>(null)
+  const [assigneeLoading, setAssigneeLoading] = useState(false)
   const [frameworkCardOpen, setFrameworkCardOpen] = useState(true)
 
   const { activeViewId, navigateTo, navigateBack, direction } =
@@ -331,6 +262,47 @@ export default function AssessmentDetails({ id }: { id: string }) {
   useEffect(() => {
     load()
   }, [id])
+
+  useEffect(() => {
+    if (uploadEvidenceControl) setUploadEvidenceFiles([])
+  }, [uploadEvidenceControl])
+
+  useEffect(() => {
+    if (!assignControl || !assessment?.companyId) {
+      setAssignMembers([])
+      return
+    }
+    setAssignMembersLoading(true)
+    fetchCompanyMembers(assessment.companyId)
+      .then((res) => setAssignMembers(res.members ?? []))
+      .catch(() => setAssignMembers([]))
+      .finally(() => setAssignMembersLoading(false))
+  }, [assignControl, assessment?.companyId])
+
+  useEffect(() => {
+    if (!viewAssigneeControl || !assessment?.companyId) {
+      setAssigneeMember(null)
+      return
+    }
+    const assignedToRaw = viewAssigneeControl.progress?.assignedTo as AssignedToRaw
+    const assignedToId = getAssignedToId(assignedToRaw)
+    if (!assignedToId) {
+      setAssigneeMember(null)
+      return
+    }
+    setAssigneeLoading(true)
+    fetchCompanyMembers(assessment.companyId)
+      .then((res) => {
+        const members = res.members ?? []
+        const member =
+          members.find((m) => m.id === assignedToId) ??
+          members.find((m) => m.user?.id === assignedToId) ??
+          null
+        setAssigneeMember(member)
+      })
+      .catch(() => setAssigneeMember(null))
+      .finally(() => setAssigneeLoading(false))
+  }, [viewAssigneeControl, assessment?.companyId])
 
   if (loading) {
     return (
@@ -429,11 +401,242 @@ export default function AssessmentDetails({ id }: { id: string }) {
           <FunctionSection
             fn={selectedFunction}
             onOpenActionModal={setActionModalControl}
+            onAssign={setAssignControl}
+            onUploadEvidence={setUploadEvidenceControl}
+            onViewAssignee={setViewAssigneeControl}
           />
-          <ControlStatusModal
-            control={actionModalControl}
+          <Sheet
+            open={!!uploadEvidenceControl}
+            onOpenChange={(open) => {
+              if (!open) {
+                setUploadEvidenceControl(null)
+                setUploadEvidenceFiles([])
+              }
+            }}
+          >
+            <SheetContent side="right" className="flex max-h-dvh w-1/4 flex-col p-0 sm:w-1/3 sm:max-w-none">
+              <SheetHeader className="shrink-0 px-6 pt-6">
+                <SheetTitle>Upload evidence</SheetTitle>
+                {uploadEvidenceControl && (
+                  <SheetDescription asChild>
+                    <div className="space-y-2">
+                      <span className="font-mono text-xs">{uploadEvidenceControl.code}</span>
+                      <p className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
+                        {uploadEvidenceControl.question}
+                      </p>
+                    </div>
+                  </SheetDescription>
+                )}
+              </SheetHeader>
+              {uploadEvidenceControl && (
+                <ScrollArea className="min-h-0 flex-1 px-6">
+                  <div className="grid gap-4 pb-6 pr-4 pt-2">
+                    {uploadEvidenceControl.requiredEvidence?.length > 0 ? (
+                      <div className="text-sm">
+                        <span className="font-medium">Required documents</span>
+                        <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+                          {uploadEvidenceControl.requiredEvidence.map((doc, i) => (
+                            <li key={i}>{doc}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    <FileUpload
+                      label="Upload files"
+                      accept="image/*"
+                      multiple={true}
+                      files={uploadEvidenceFiles}
+                      onFilesChange={setUploadEvidenceFiles}
+                      description="Attach evidence documents"
+                    />
+                  </div>
+                </ScrollArea>
+              )}
+            </SheetContent>
+          </Sheet>
+          {/* Assign Sheet */}
+          <Sheet open={!!assignControl} onOpenChange={(open) => !open && setAssignControl(null)}>
+            <SheetContent side="right" className="flex max-h-dvh w-1/4 flex-col p-0 sm:w-1/3 sm:max-w-none">
+              <SheetHeader className="shrink-0 px-6 pt-6">
+                <SheetTitle>Assign control</SheetTitle>
+                {assignControl && (
+                  <SheetDescription asChild>
+                    <div className="space-y-2">
+                      <span className="font-mono text-xs">{assignControl.code}</span>
+                      <p className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
+                        {assignControl.question}
+                      </p>
+                    </div>
+                  </SheetDescription>
+                )}
+              </SheetHeader>
+              <div className="mt-4 flex flex-1 min-h-0 flex-col px-6">
+                <p className="mb-2 text-sm font-medium">Company members</p>
+                {assignMembersLoading ? (
+                  <ul className="space-y-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <li key={i}>
+                        <Skeleton className="h-14 w-full rounded-md" />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <ScrollArea className="min-h-0 flex-1 pr-4">
+                    <ul className="space-y-2 pb-6">
+                      {assignMembers.length === 0 ? (
+                        <li className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
+                          No members in this company.
+                        </li>
+                      ) : (
+                        assignMembers.map((member) => (
+                          <li
+                            key={member.id}
+                            className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">
+                                {(member.user?.name ?? `${member.user?.firstName ?? ""} ${member.user?.lastName ?? ""}`.trim()) || "—"}
+                              </p>
+                              {member.user?.email && (
+                                <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              disabled={!assignControl || !assessment || assigningMemberId === member.id}
+                              onClick={async () => {
+                                if (!assignControl || !assessment || !member.id) return
+                                setAssigningMemberId(member.id)
+                                try {
+                                  await assignControlProgress(assignControl.progress.id, {
+                                    companyId: assessment.companyId,
+                                    memberId: member.id,
+                                  })
+                                  toast.success("Control assigned successfully")
+                                  setAssignControl(null)
+                                  const data = await refetchAssessment()
+                                  if (data?.functions && selectedFunction) {
+                                    const updated = data.functions.find((f) => f.id === selectedFunction.id)
+                                    if (updated) setSelectedFunction(updated)
+                                  }
+                                } catch (err) {
+                                  const message = err instanceof Error ? err.message : "Failed to assign control"
+                                  toast.error(message)
+                                } finally {
+                                  setAssigningMemberId(null)
+                                }
+                              }}
+                            >
+                              {assigningMemberId === member.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                                  Assigning…
+                                </>
+                              ) : (
+                                "Assign to"
+                              )}
+                            </Button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </ScrollArea>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+          {/* view assignee sheet */}
+          <Sheet open={!!viewAssigneeControl} onOpenChange={(open) => !open && setViewAssigneeControl(null)}>
+            <SheetContent side="right" className="flex max-h-dvh w-1/4 flex-col p-0 sm:w-1/3 sm:max-w-none">
+              <SheetHeader className="shrink-0 px-6 pt-6">
+                <SheetTitle>Assignee details</SheetTitle>
+                {viewAssigneeControl && (
+                  <SheetDescription asChild>
+                    <div className="space-y-2">
+                      <span className="font-mono text-xs">{viewAssigneeControl.code}</span>
+                      <p className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
+                        {viewAssigneeControl.question}
+                      </p>
+                    </div>
+                  </SheetDescription>
+                )}
+              </SheetHeader>
+              <div className="mt-4 flex flex-1 min-h-0 flex-col px-6 pb-6">
+                {assigneeLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-10 w-full rounded-md" />
+                    ))}
+                  </div>
+                ) : assigneeMember ? (
+                  <div className="space-y-4">
+                    <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+                      <p className="text-sm font-medium">
+                        {(assigneeMember.user?.name ?? `${assigneeMember.user?.firstName ?? ""} ${assigneeMember.user?.lastName ?? ""}`.trim()) || "—"}
+                      </p>
+                      {assigneeMember.user?.email && (
+                        <p className="text-sm text-muted-foreground">{assigneeMember.user.email}</p>
+                      )}
+                    </div>
+                    {viewAssigneeControl?.progress?.assignedToComment && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Comment</p>
+                        <p className="text-sm text-muted-foreground rounded-md border bg-muted/30 p-3">
+                          {viewAssigneeControl.progress.assignedToComment}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (() => {
+                  const assignedToRaw = viewAssigneeControl?.progress?.assignedTo as AssignedToRaw
+                  const assignedToId = getAssignedToId(assignedToRaw)
+                  const embeddedUser = getAssignedToUserFromRaw(assignedToRaw)
+                  if (!assignedToId && !embeddedUser) return <p className="text-sm text-muted-foreground">No assignee.</p>
+                  return (
+                    <div className="space-y-4">
+                      {embeddedUser ? (
+                        <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+                          <p className="text-sm font-medium">{embeddedUser.name}</p>
+                          {embeddedUser.email && (
+                            <p className="text-sm text-muted-foreground">{embeddedUser.email}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            Assigned to member (details not available).
+                          </p>
+                          <p className="font-mono text-xs text-muted-foreground break-all">
+                            ID: {assignedToId}
+                          </p>
+                        </>
+                      )}
+                      {viewAssigneeControl?.progress?.assignedToComment && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Comment</p>
+                          <p className="text-sm text-muted-foreground rounded-md border bg-muted/30 p-3">
+                            {viewAssigneeControl.progress.assignedToComment}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* action modal sheet */}
+          <ControlStatusSheet
             open={!!actionModalControl}
             onOpenChange={(open) => !open && setActionModalControl(null)}
+            initialStatusCode={actionModalControl?.progress?.status?.code ?? ""}
+            initialComment={actionModalControl?.progress?.assignedToComment ?? ""}
+            code={actionModalControl?.code ?? ""}
+            question={actionModalControl?.question ?? ""}
+            requiredEvidence={actionModalControl?.requiredEvidence}
             onSave={async (payload) => {
               if (!actionModalControl || !assessment) return
               await patchComplianceProgress(actionModalControl.progress.id, {
@@ -476,7 +679,7 @@ export default function AssessmentDetails({ id }: { id: string }) {
                     ({assessment.framework.code})
                   </span>
                 </CardTitle>
-                <Badge variant={statusVariant(assessment.status)} className="text-xs">
+                <Badge variant={complianceStatusVariant(assessment.status)} className="text-xs">
                   {assessment.status.replace(/_/g, " ")}
                 </Badge>
                 <span className="flex items-center gap-3 text-xs text-muted-foreground">

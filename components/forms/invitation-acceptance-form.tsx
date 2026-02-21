@@ -35,16 +35,15 @@ const TIMEZONES = [
 
 interface InvitationAcceptanceFormProps {
   invitationId: string
-  token: string
 }
 
 export default function InvitationAcceptanceForm({
   invitationId,
-  token,
 }: InvitationAcceptanceFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
+    token:invitationId,
     firstName: "",
     lastName: "",
     password: "",
@@ -66,17 +65,17 @@ export default function InvitationAcceptanceForm({
     setIsLoading(true)
 
     try {
-      await acceptInvitation(invitationId, {
+      await acceptInvitation( {
         ...formData,
-        token,
       })
       toast.success("Invitation accepted", {
         description: "Your account has been created successfully.",
       })
       router.push("/login")
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Please check your information and try again."
       toast.error("Failed to accept invitation", {
-        description: error?.message || "Please check your information and try again.",
+        description: message,
       })
     } finally {
       setIsLoading(false)

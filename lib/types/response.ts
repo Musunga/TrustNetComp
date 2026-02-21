@@ -4,3 +4,8 @@ export interface ApiResponse<T = unknown> {
   statusCode: number;
   data: T;
 }
+
+export interface ApiValidationErrorBody {
+  formErrors: string[]
+  fieldErrors: Record<string, string[]>
+}

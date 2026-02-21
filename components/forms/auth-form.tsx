@@ -58,8 +58,18 @@ export function AuthForm() {
         requiresCompanySelection: data.requiresCompanySelection,
         message: data.message,
       })
-      const maxAge = 60 * 60 * 24 // 24 hours
-      document.cookie = `${ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(data.token)}; path=/; max-age=${maxAge}; SameSite=Lax`
+      if (data.token) {
+        localStorage.setItem(ACCESS_TOKEN_COOKIE_NAME, data.token)
+        const res = await fetch("/api/auth/set-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: data.token }),
+        })
+        if (!res.ok) {
+          setLoginError("Session could not be established. Please try again.")
+          return
+        }
+      }
       router.push("/dashboard")
     } catch (_err) {
       setLoginError("Invalid email or password. Please try again.")

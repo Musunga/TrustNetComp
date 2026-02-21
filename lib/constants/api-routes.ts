@@ -77,6 +77,10 @@ export const API_ROUTES = {
   COMPLIANCE_PROGRESS: {
     PATCH: (controlProgressId: string) =>
       `/api/compliance-progress/${controlProgressId}`,
+    ASSIGN: (controlProgressId: string) =>
+      `/api/compliance-progress/${controlProgressId}/assign`,
+    USER_TASKS: (userId: string, companyId: string) =>
+      `/api/compliance-progress/user/${userId}/company/${companyId}`,
   },
 
   // User roles
@@ -91,6 +95,6 @@ export const API_ROUTES = {
       `/api/invitations/company/${companyId}`,
     DELETE: (invitationId: string) => `/api/invitations/${invitationId}`,
     RESEND: (invitationId: string) => `/api/invitations/${invitationId}/resend`,
-    ACCEPT: (invitationId: string) => `/api/invitations/${invitationId}/accept`,
+    ACCEPT:  `/api/auth/accept-invite`,
   },
 } as const;

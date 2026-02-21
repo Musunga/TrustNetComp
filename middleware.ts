@@ -1,25 +1,44 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables";
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { unsealData } from "iron-session"
+import {
+  SESSION_COOKIE_NAME,
+  getSessionPassword,
+} from "@/lib/session"
+import type { SessionData } from "@/lib/session"
 
-export function middleware(request: NextRequest) {
-  const isLoggedIn = request.cookies.has(ACCESS_TOKEN_COOKIE_NAME);
+export async function middleware(request: NextRequest) {
+  const seal = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  let isLoggedIn = false
+  if (seal) {
+    try {
+      const data = await unsealData<SessionData>(seal, {
+        password: getSessionPassword(),
+      })
+      isLoggedIn = !!(data?.accessToken)
+    } catch {
+      isLoggedIn = false
+    }
+  }
+
+  const { pathname } = request.nextUrl
   const isAuthPage =
-    request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/register" ||
-    request.nextUrl.pathname === "/forgot-password";
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/"
+  const isPublicPage = isAuthPage || pathname.startsWith("/invited")
 
-  // // If the user is not logged in and trying to access a protected page
-  // if (!isLoggedIn && !isAuthPage) {
-  //     return NextResponse.redirect(new URL("/login", request.url))
-  // }
-  //
-  // // If the user is logged in and trying to access an (auth) page
-  // if (isLoggedIn && isAuthPage) {
-  //     return NextResponse.redirect(new URL("/", request.url))
-  // }
+  if (!isLoggedIn && !isPublicPage) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
 
-  return NextResponse.next();
+  if (isLoggedIn && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
+  return NextResponse.next()
 }
 
 // See "Matching Paths" below to learn more
