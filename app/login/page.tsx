@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { AuthForm } from "@/components/forms/auth-form"
 import { BrandLogo } from "@/components/brand-logo"
 import { ClearSessionOnLogin } from "@/components/clear-session-on-login"
@@ -21,7 +22,9 @@ export default function LoginPage() {
         </div>
       </div>
       <div className="lg:p-8">
-        <ClearSessionOnLogin />
+        <Suspense fallback={null}>
+          <ClearSessionOnLogin />
+        </Suspense>
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[480px] md:w-[640px]">
           <div className="flex flex-col space-y-2 text-center">
             <h1 className="text-2xl font-semibold tracking-tight">Access Compliance Dashboard</h1>
