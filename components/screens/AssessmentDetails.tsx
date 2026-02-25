@@ -83,7 +83,10 @@ function getAssignedToId(raw: AssignedToRaw): string | null {
 function getAssignedToUserFromRaw(raw: AssignedToRaw): { name: string; email?: string } | null {
   if (raw == null || typeof raw !== "object" || !raw.user || typeof raw.user !== "object") return null
   const u = raw.user
-  const name = [u.name, u.firstName, u.lastName].filter(Boolean).join(" ").trim() || "—"
+  const name =
+    typeof u.name === "string" && u.name.trim()
+      ? u.name.trim()
+      : [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || "—"
   return { name, email: typeof u.email === "string" ? u.email : undefined }
 }
 
@@ -144,6 +147,7 @@ function FunctionSection({
                 const completion = control.progress?.completionPercentage ?? 0
                 const compliant = isCompliant(statusCode)
                 const isAssigned = !!control.progress?.assignedTo
+                const assigneeUser = getAssignedToUserFromRaw(control.progress?.assignedTo as AssignedToRaw)
                 return (
                   <TableRow key={control.id}>
                     <TableCell className="py-2 font-mono text-xs text-muted-foreground">
@@ -157,7 +161,7 @@ function FunctionSection({
                         {isAssigned && (
                           <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground">
                             <User className="h-3.5 w-3.5" aria-hidden />
-                            Assigned
+                            Assigned{assigneeUser?.name ? ` • ${assigneeUser.name}` : ""}
                           </span>
                         )}
                       </div>
