@@ -1,6 +1,7 @@
 "use server"
 
-import api, { getAuthHeaders } from "../api"
+import api from "../api"
+import { getAuthHeaders } from "../auth-headers"
 import { API_ROUTES } from "../constants/api-routes"
 import type { AssignControlProgressBody } from "../types/compliance-progress"
 import type { UserComplianceTasksResponse } from "../types/user-compliance-tasks"

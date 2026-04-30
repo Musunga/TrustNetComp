@@ -1,6 +1,7 @@
 "use server"
 
-import api, { getAuthHeaders, getApiErrorMessage } from "../api"
+import api, { getApiErrorMessage } from "../api"
+import { getAuthHeaders } from "../auth-headers"
 import { API_ROUTES } from "../constants/api-routes"
 import type { UserRolesResponse } from "../types/user-roles"
 import type {

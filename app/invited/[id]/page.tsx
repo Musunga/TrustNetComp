@@ -19,12 +19,7 @@ function InvitedPageContent({
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
         <div className="absolute inset-0 bg-primary" />
         <div className="relative z-20 flex items-center text-lg font-medium">
-          <BrandLogo
-            className="h-10 w-auto"
-            width={140}
-            height={36}
-            priority
-          />
+          <BrandLogo className="h-10" priority />
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">

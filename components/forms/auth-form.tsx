@@ -3,13 +3,22 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useSetAtom } from "jotai"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { login as loginAction } from "@/lib/actions/auth"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { login as loginAction, register as registerAction } from "@/lib/actions/auth"
+import { getApiErrorMessage } from "@/lib/api"
 import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables"
 import { authSessionAtom } from "@/lib/store/auth"
 
@@ -18,7 +27,7 @@ export function AuthForm() {
   const setAuthSession = useSetAtom(authSessionAtom)
   const [isLoading, setIsLoading] = React.useState(false)
   const [step, setStep] = React.useState(0)
-  const totalSteps = 9
+  const totalSteps = 7
   const [showPassword, setShowPassword] = React.useState(false)
   const [loginError, setLoginError] = React.useState<string | null>(null)
   const [values, setValues] = React.useState({
@@ -28,8 +37,6 @@ export function AuthForm() {
     password: "",
     phoneNumber: "",
     jobTitle: "",
-    timezone: "",
-    bio: "",
     companyName: "",
     companySize: "",
     industry: "",
@@ -80,15 +87,43 @@ export function AuthForm() {
 
   async function onRegisterSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
-    // Only submit on final step
     if (step < totalSteps - 1) return
+    setError(null)
     setIsLoading(true)
-    const payload = { ...values }
-    // TODO: Replace with actual API call
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const data = await registerAction({
+        ...values,
+        name: `${values.firstName} ${values.lastName}`.trim(),
+      })
+      if (data.token) {
+        localStorage.setItem(ACCESS_TOKEN_COOKIE_NAME, data.token)
+        const res = await fetch("/api/auth/set-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: data.token }),
+        })
+        if (!res.ok) {
+          setError("Session could not be established. Please try again.")
+          return
+        }
+      }
+      if (data.user && Array.isArray(data.memberships)) {
+        setAuthSession({
+          user: data.user,
+          memberships: data.memberships,
+          activeMembership: data.activeMembership ?? null,
+          selectedCompanyId: data.selectedCompanyId ?? null,
+          requiresCompanySelection: !!data.requiresCompanySelection,
+          message: data.message ?? "Account created",
+        })
+      }
       router.push("/dashboard")
-    }, 1000)
+      router.refresh()
+    } catch (err) {
+      setError(getApiErrorMessage(err) ?? "Could not create account. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -96,9 +131,12 @@ export function AuthForm() {
     setValues((prev) => ({ ...prev, [name]: value }))
   }
 
+  function handleSelectChange(name: keyof typeof values, value: string) {
+    setValues((prev) => ({ ...prev, [name]: value }))
+  }
+
   function validateCurrentStep(): boolean {
     setError(null)
-    // Minimal validation for key fields on their steps
     if (step === 0) {
       if (!values.firstName || !values.lastName) {
         setError("Please enter your first and last name.")
@@ -117,11 +155,15 @@ export function AuthForm() {
         return false
       }
     }
-    if (step === 5) {
+    if (step === 4) {
       if (!values.companyName) {
         setError("Please enter your company name.")
         return false
       }
+    }
+    if (step === 6 && !values.companyCountry) {
+      setError("Please select your company country.")
+      return false
     }
     return true
   }
@@ -159,7 +201,14 @@ export function AuthForm() {
           </Button>
         ) : (
           <Button type="submit" disabled={isLoading} className="ml-auto">
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         )}
       </CardFooter>
@@ -179,7 +228,7 @@ export function AuthForm() {
             <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>
           </div>
           <Card>
-            <form onSubmit={onLoginSubmit}>
+            <form onSubmit={onLoginSubmit} autoComplete="off">
               <CardContent className="space-y-6">
                 {loginError ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert" aria-live="polite">
@@ -188,11 +237,11 @@ export function AuthForm() {
                 ) : null}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" placeholder="m@example.com" required />
+                  <Input id="email" name="email" type="email" autoComplete="off" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" required />
+                  <Input id="password" name="password" type="password" autoComplete="off" required />
                 </div>
               </CardContent>
               <CardFooter className="mt-4 md:mt-6">
@@ -209,7 +258,7 @@ export function AuthForm() {
             <p className="text-sm text-muted-foreground">Sign up for a new company account</p>
           </div>
           <Card>
-            <form onSubmit={onRegisterSubmit}>
+            <form onSubmit={onRegisterSubmit} autoComplete="off">
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -232,11 +281,11 @@ export function AuthForm() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" name="firstName" placeholder="John" value={values.firstName} onChange={handleChange} />
+                        <Input id="firstName" name="firstName" value={values.firstName} onChange={handleChange} autoComplete="off" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" name="lastName" placeholder="Doe" value={values.lastName} onChange={handleChange} />
+                        <Input id="lastName" name="lastName" value={values.lastName} onChange={handleChange} autoComplete="off" />
                       </div>
                     </div>
                   </div>
@@ -247,11 +296,11 @@ export function AuthForm() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="email-reg">Email</Label>
-                        <Input id="email-reg" name="email" type="email" placeholder="john.doe@example.com" value={values.email} onChange={handleChange} />
+                        <Input id="email-reg" name="email" type="email" value={values.email} onChange={handleChange} autoComplete="off" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input id="phoneNumber" name="phoneNumber" placeholder="+1234567890" value={values.phoneNumber} onChange={handleChange} />
+                        <Input id="phoneNumber" name="phoneNumber" value={values.phoneNumber} onChange={handleChange} autoComplete="off" />
                       </div>
                     </div>
                   </div>
@@ -266,9 +315,9 @@ export function AuthForm() {
                           id="password-reg"
                           name="password"
                           type={showPassword ? "text" : "password"}
-                          placeholder="SecurePassword123!"
                           value={values.password}
                           onChange={handleChange}
+                          autoComplete="off"
                           className="pr-16"
                         />
                         <Button
@@ -287,87 +336,116 @@ export function AuthForm() {
                 )}
                 {step === 3 && (
                   <div className="space-y-4">
-                    <StepHeader title="Your role and timezone" />
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="jobTitle">Job Title</Label>
-                        <Input id="jobTitle" name="jobTitle" placeholder="CTO" value={values.jobTitle} onChange={handleChange} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Input id="timezone" name="timezone" placeholder="America/New_York" value={values.timezone} onChange={handleChange} />
-                      </div>
+                    <StepHeader title="Your role" />
+                    <div className="space-y-2">
+                      <Label htmlFor="jobTitle">Job Title</Label>
+                      <Input id="jobTitle" name="jobTitle" value={values.jobTitle} onChange={handleChange} autoComplete="off" />
                     </div>
                   </div>
                 )}
                 {step === 4 && (
                   <div className="space-y-4">
-                    <StepHeader title="Tell us a bit about you" />
+                    <StepHeader title="Company basics" />
                     <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <Input id="bio" name="bio" placeholder="Software engineer with 10 years of experience" value={values.bio} onChange={handleChange} />
+                      <Label htmlFor="companyName">Company Name</Label>
+                      <Input id="companyName" name="companyName" value={values.companyName} onChange={handleChange} autoComplete="off" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="companySize">Company Size</Label>
+                        <Select value={values.companySize} onValueChange={(value) => handleSelectChange("companySize", value)}>
+                          <SelectTrigger id="companySize" className="w-full">
+                            <SelectValue placeholder="Select company size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0-50">0 - 50</SelectItem>
+                            <SelectItem value="50-100">50 - 100</SelectItem>
+                            <SelectItem value="100-500">100 - 500</SelectItem>
+                            <SelectItem value="500-1000">500 - 1000</SelectItem>
+                            <SelectItem value=">1000">&gt; 1000</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="industry">Industry</Label>
+                        <Select value={values.industry} onValueChange={(value) => handleSelectChange("industry", value)}>
+                          <SelectTrigger id="industry" className="w-full">
+                            <SelectValue placeholder="Select industry" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="Financial Services">Financial Services</SelectItem>
+                            <SelectItem value="Healthcare">Healthcare</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
+                            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                            <SelectItem value="Retail">Retail</SelectItem>
+                            <SelectItem value="Government">Government</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 )}
                 {step === 5 && (
                   <div className="space-y-4">
-                    <StepHeader title="Company basics" />
-                    <div className="space-y-2">
-                      <Label htmlFor="companyName">Company Name</Label>
-                      <Input id="companyName" name="companyName" placeholder="Acme Corporation" value={values.companyName} onChange={handleChange} />
-                    </div>
+                    <StepHeader title="Company contact details" />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="companySize">Company Size</Label>
-                        <Input id="companySize" name="companySize" placeholder="50-100" value={values.companySize} onChange={handleChange} />
+                        <Label htmlFor="companyPhoneNumber">Company Phone Number</Label>
+                        <Input id="companyPhoneNumber" name="companyPhoneNumber" value={values.companyPhoneNumber} onChange={handleChange} autoComplete="off" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="industry">Industry</Label>
-                        <Input id="industry" name="industry" placeholder="Technology" value={values.industry} onChange={handleChange} />
+                        <Label htmlFor="companyEmail">Company Email</Label>
+                        <Input id="companyEmail" name="companyEmail" type="email" value={values.companyEmail} onChange={handleChange} autoComplete="off" />
                       </div>
                     </div>
                   </div>
                 )}
                 {step === 6 && (
                   <div className="space-y-4">
-                    <StepHeader title="Company contact details" />
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="companyPhoneNumber">Company Phone Number</Label>
-                        <Input id="companyPhoneNumber" name="companyPhoneNumber" placeholder="+1234567890" value={values.companyPhoneNumber} onChange={handleChange} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="companyEmail">Company Email</Label>
-                        <Input id="companyEmail" name="companyEmail" type="email" placeholder="contact@acme.com" value={values.companyEmail} onChange={handleChange} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {step === 7 && (
-                  <div className="space-y-4">
-                    <StepHeader title="Where are you located?" />
+                    <StepHeader title="Where are you located?" subtitle="City is optional." />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="companyCountry">Company Country</Label>
-                        <Input id="companyCountry" name="companyCountry" placeholder="USA" value={values.companyCountry} onChange={handleChange} />
+                        <Select value={values.companyCountry} onValueChange={(value) => handleSelectChange("companyCountry", value)}>
+                          <SelectTrigger id="companyCountry" className="w-full">
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Zambia">Zambia</SelectItem>
+                            <SelectItem value="South Africa">South Africa</SelectItem>
+                            <SelectItem value="Kenya">Kenya</SelectItem>
+                            <SelectItem value="Nigeria">Nigeria</SelectItem>
+                            <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                            <SelectItem value="United States">United States</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="companyCity">Company City</Label>
-                        <Input id="companyCity" name="companyCity" placeholder="New York" value={values.companyCity} onChange={handleChange} />
+                        <Select value={values.companyCity} onValueChange={(value) => handleSelectChange("companyCity", value)}>
+                          <SelectTrigger id="companyCity" className="w-full">
+                            <SelectValue placeholder="Select city (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Lusaka">Lusaka</SelectItem>
+                            <SelectItem value="Ndola">Ndola</SelectItem>
+                            <SelectItem value="Kitwe">Kitwe</SelectItem>
+                            <SelectItem value="Johannesburg">Johannesburg</SelectItem>
+                            <SelectItem value="Nairobi">Nairobi</SelectItem>
+                            <SelectItem value="Lagos">Lagos</SelectItem>
+                            <SelectItem value="London">London</SelectItem>
+                            <SelectItem value="New York">New York</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </div>
-                )}
-                {step === 8 && (
-                  <div className="space-y-4">
-                    <StepHeader title="Review and create your account" subtitle="Confirm your details before creating your workspace." />
                     <div className="text-sm grid gap-2">
                       <div><span className="text-muted-foreground">Name:</span> {values.firstName} {values.lastName}</div>
                       <div><span className="text-muted-foreground">Email:</span> {values.email}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {values.phoneNumber || "—"}</div>
                       <div><span className="text-muted-foreground">Job Title:</span> {values.jobTitle || "—"}</div>
-                      <div><span className="text-muted-foreground">Timezone:</span> {values.timezone || "—"}</div>
-                      <div><span className="text-muted-foreground">Bio:</span> {values.bio || "—"}</div>
                       <div><span className="text-muted-foreground">Company:</span> {values.companyName}</div>
                       <div><span className="text-muted-foreground">Size:</span> {values.companySize || "—"}</div>
                       <div><span className="text-muted-foreground">Industry:</span> {values.industry || "—"}</div>

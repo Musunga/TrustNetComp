@@ -1,12 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import Image from 'next/image'
+import Image, { type StaticImageData } from 'next/image'
+import  logoWhiteBg from '@/assets/images/logo-dark.png'
+import  logoDark from '@/assets/images/logo.png'
 import { cn } from '@/lib/utils'
 
+type BrandLogoSource = string | StaticImageData
+
 type BrandLogoProps = {
-  lightSrc?: string
-  darkSrc?: string
+  lightSrc?: BrandLogoSource
+  darkSrc?: BrandLogoSource
   alt?: string
   className?: string
   width?: number
@@ -14,12 +18,12 @@ type BrandLogoProps = {
   priority?: boolean
 }
 
-const DEFAULT_LOGO = '/logo.png'
-const DEFAULT_LOGO_DARK   = '/logo-dark.png'
+const DEFAULT_LOGO = logoDark // Dark logo for light theme
+const DEFAULT_LOGO_WHITE = logoWhiteBg // White logo for dark theme
 
 export function BrandLogo({
   lightSrc = DEFAULT_LOGO,
-  darkSrc = DEFAULT_LOGO_DARK,
+  darkSrc = DEFAULT_LOGO_WHITE,
   alt = 'TrustNetComp',
   className,
   width = 120,
@@ -27,13 +31,13 @@ export function BrandLogo({
   priority,
 }: BrandLogoProps) {
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('inline-flex items-center', className)} style={{ width, height }}>
       <Image
         src={lightSrc}
         alt={alt}
         width={width}
         height={height}
-        className="inline-block dark:hidden h-full w-auto"
+        className="h-full w-full object-contain dark:hidden"
         priority={priority}
       />
       <Image
@@ -41,7 +45,7 @@ export function BrandLogo({
         alt={alt}
         width={width}
         height={height}
-        className="hidden dark:inline-block h-full w-auto"
+        className="hidden h-full w-full object-contain dark:inline-block"
         priority={priority}
       />
     </div>

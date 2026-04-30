@@ -8,7 +8,7 @@ import {
   AUTH_SESSION_STORAGE_KEY,
   ACTIVE_COMPANY_STORAGE_KEY,
 } from "../constants/variables"
-import type { LoginRequest, LoginResponseI } from "../types/auth"
+import type { LoginRequest, LoginResponseI, RegisterRequest } from "../types/auth"
 
 export const login = async (
   email: LoginRequest["email"],
@@ -39,4 +39,20 @@ export const logout = async () => {
   localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY)
   // Full redirect so clear-session route runs and destroys iron-session cookie
   window.location.href = "/api/auth/clear-session?redirect=/login"
+}
+
+export const register = async (payload: RegisterRequest) => {
+  try {
+    const response = await api.post<LoginResponseI>(API_ROUTES.AUTH.REGISTER, payload)
+    const data: LoginResponseI = response.data
+    const accessToken = data.token
+    if (accessToken) {
+      const session = await getSession()
+      session.accessToken = accessToken
+      await session.save()
+    }
+    return data
+  } catch (error) {
+    return Promise.reject(error)
+  }
 }

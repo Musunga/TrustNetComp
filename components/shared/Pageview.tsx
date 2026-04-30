@@ -34,7 +34,7 @@ export interface ViewOrchestratorProps<TViewId extends string = string> {
   views: ViewDefinition<TViewId>[];
   /** The currently active view ID */
   activeViewId: TViewId;
-  /** Direction of navigation: forward (swipe left) or backward (swipe right) */
+  /** Direction of navigation for custom variants */
   direction?: "forward" | "backward";
   /** Callback when view changes (for external state management) */
   onViewChange?: (viewId: TViewId) => void;
@@ -46,18 +46,16 @@ export interface ViewOrchestratorProps<TViewId extends string = string> {
 
 /**
  * Default animation variants for view transitions
- * Forward: swipe left (enter from right, exit to left)
- * Backward: swipe right (enter from left, exit to right)
  */
-const createDefaultVariants = (direction: "forward" | "backward"): Variants => {
-  // Forward: swipe left (enter from right +100, exit to left -100)
-  // Backward: swipe right (enter from left -100, exit to right +100)
-  const enterX = direction === "forward" ? 100 : -100;
-  const exitX = direction === "forward" ? -100 : 100;
+const defaultVariants: Variants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+const createDefaultVariants = (): Variants => {
   return {
-    initial: { opacity: 0, x: enterX },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: exitX },
+    ...defaultVariants,
   };
 };
 
@@ -114,7 +112,7 @@ export const ViewOrchestrator = <TViewId extends string = string>({
     );
   }
 
-  const variants = activeView.variants || createDefaultVariants(direction);
+  const variants = activeView.variants || createDefaultVariants();
 
   if (!enableAnimations) {
     return <>{activeView.content}</>;

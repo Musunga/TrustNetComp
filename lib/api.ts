@@ -1,16 +1,8 @@
 import axios from "axios"
-import { getSession } from "@/lib/session"
 import { ACCESS_TOKEN_COOKIE_NAME, BASE_URL } from "./constants/variables"
 import type { ApiValidationErrorBody } from "@/lib/types/response"
 
 const computedBaseURL = typeof window === "undefined" ? BASE_URL : ""
-
-export async function getAuthHeaders(): Promise<{ Authorization?: string }> {
-  const session = await getSession()
-  const token = session.accessToken
-  if (!token) return {}
-  return { Authorization: `Bearer ${token}` }
-}
 
 export const api = axios.create({
   baseURL: computedBaseURL,

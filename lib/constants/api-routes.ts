@@ -18,6 +18,7 @@ export const API_ROUTES = {
     UPDATE: (id: string | number) => `/api/users/${id}`,
     DELETE: (id: string | number) => `/api/users/${id}`,
     PROFILE: "/api/users/profile",
+    COMPANY_PROFILE: (companyId: string | number) => `/api/users/${companyId}/profile`,
   },
 
   // Companies
@@ -65,6 +66,11 @@ export const API_ROUTES = {
   BILLING: {
     LIST: "/api/billing",
     GET: (id: string | number) => `/api/billing/${id}`,
+  },
+
+  // Wallet
+  WALLET: {
+    GET_BY_COMPANY: (companyId: string | number) => `/api/wallet/${companyId}`,
   },
 
   // Technical review

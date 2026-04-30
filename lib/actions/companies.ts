@@ -1,6 +1,7 @@
 "use server"
 
-import api, { getAuthHeaders } from "../api"
+import api from "../api"
+import { getAuthHeaders } from "../auth-headers"
 import { API_ROUTES } from "../constants/api-routes"
 import type { CompanyMembersStatsResponse } from "../types/company-members-stats"
 import type { CompanyMembersResponse } from "../types/company-members"

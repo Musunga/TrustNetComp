@@ -4,8 +4,8 @@ import { unsealData } from "iron-session"
 import {
   SESSION_COOKIE_NAME,
   getSessionPassword,
-} from "@/lib/session"
-import type { SessionData } from "@/lib/session"
+  type SessionData,
+} from "@/lib/session-config"
 
 export async function middleware(request: NextRequest) {
   const seal = request.cookies.get(SESSION_COOKIE_NAME)?.value
@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
     pathname === "/register" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
+    pathname === "/live-capture" ||
     pathname === "/"
   const isPublicPage = isAuthPage || pathname.startsWith("/invited")
 

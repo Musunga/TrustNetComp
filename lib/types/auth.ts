@@ -3,6 +3,23 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterRequest {
+  firstName: string;
+  lastName: string;
+  name?: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  jobTitle?: string;
+  companyName: string;
+  companySize?: string;
+  industry?: string;
+  companyPhoneNumber?: string;
+  companyEmail?: string;
+  companyCountry?: string;
+  companyCity?: string;
+}
+
 
 export interface LoginResponseI {
   token: string;
@@ -42,9 +59,11 @@ export interface CompanyI {
 
 export interface RoleI {
   id:   string;
-  code: string;
+  code: UserRoleCode;
   name: string;
 }
+
+export type UserRoleCode = "TECHNICAL_ADMIN" | (string & {});
 
 export interface UserI {
   id:          string;

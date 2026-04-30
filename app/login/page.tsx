@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import Image from "next/image"
 import { AuthForm } from "@/components/forms/auth-form"
 import { BrandLogo } from "@/components/brand-logo"
 import { ClearSessionOnLogin } from "@/components/clear-session-on-login"
@@ -6,10 +7,18 @@ import { ClearSessionOnLogin } from "@/components/clear-session-on-login"
 export default function LoginPage() {
   return (
     <div className="container mx-auto relative flex h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
-        <div className="absolute inset-0 bg-primary" />
+      <div className="relative hidden h-full flex-col overflow-hidden bg-muted p-10 text-white dark:border-r lg:flex">
+        <Image
+          src="/logo-dark.png"
+          alt=""
+          fill
+          priority
+          className="object-cover opacity-20"
+          sizes="50vw"
+        />
+        <div className="absolute inset-0 bg-primary/85" />
         <div className="relative z-20 flex items-center text-lg font-medium">
-          <BrandLogo className="h-10 w-auto" width={140} height={36} priority />
+          <BrandLogo width={880} height={256} priority />
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">

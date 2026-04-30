@@ -27,15 +27,22 @@ import {
   Mail,
   MessageCircle,
   FileText,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { BrandLogo } from "@/components/brand-logo"
 import { HexagonPatternLeft } from "@/components/shared/HexagonPatternLeft"
+import { activeCompanyAtom, authSessionAtom } from "@/lib/store/auth"
+import { authSessionHasRole, formatCreditBalance, formatZmwAmount, getWalletCreditBalance } from "@/lib/constants/functions"
+import { fetchCompanyWallet } from "@/lib/actions/wallet"
+import type { CompanyWalletResponse } from "@/lib/types/wallet"
+import { useAtomValue } from "jotai"
 
 interface SidebarItem {
   title: string
@@ -51,25 +58,73 @@ const sidebarItems: SidebarItem[] = [
   { title: "Reports", href: "/dashboard/reports", icon: FileText },
 ]
 
+const technicalAdminSidebarItems: SidebarItem[] = [
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Technical Review", href: "/dashboard/technical-review", icon: Search },
+  { title: "Reports", href: "/dashboard/reports", icon: FileText },
+]
+
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const authSession = useAtomValue(authSessionAtom)
+  const activeCompany = useAtomValue(activeCompanyAtom)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+  const [wallet, setWallet] = React.useState<CompanyWalletResponse | null>(null)
+  const [walletLoading, setWalletLoading] = React.useState(false)
+  const navItems = authSessionHasRole(authSession, "TECHNICAL_ADMIN")
+    ? technicalAdminSidebarItems
+    : sidebarItems
+  const user = authSession?.user
+  const userName = user?.name || `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Admin User"
+  const userEmail = user?.email || "admin@acme.inc"
+  const avatarFallback = userName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AD"
+  const creditBalance = getWalletCreditBalance(wallet)
+
+  React.useEffect(() => {
+    if (!activeCompany?.id) {
+      setWallet(null)
+      setWalletLoading(false)
+      return
+    }
+
+    let ignore = false
+    setWalletLoading(true)
+    fetchCompanyWallet(activeCompany.id)
+      .then((data) => {
+        if (!ignore) setWallet(data)
+      })
+      .catch(() => {
+        if (!ignore) setWallet(null)
+      })
+      .finally(() => {
+        if (!ignore) setWalletLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [activeCompany?.id])
 
   return (
     <div className="relative flex min-h-screen flex-col min-w-0">
       <HexagonPatternLeft width="20%" className="top-14 h-[calc(100vh-3.5rem)] hidden sm:block" />
       <header className="sticky top-0 z-40 w-full shrink-0 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="mx-auto flex h-14 min-h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex h-14 min-h-14 w-full items-center justify-between gap-4 px-2 sm:px-4 lg:px-6">
           <div className="flex items-center gap-4 sm:gap-6 md:gap-8">
             <Link
               href="/dashboard"
               className="flex shrink-0 items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Dashboard home"
             >
-              <BrandLogo className="h-40 w-auto" width={120} height={32} priority />
+              <BrandLogo width={480} height={128} priority />
             </Link>
             <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-              {sidebarItems.map((item) => (
+              {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -98,21 +153,58 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   aria-label="Open user menu"
                 >
                   <Avatar className="h-8 w-8 sm:h-7 sm:w-7">
-                    <AvatarImage src="/placeholder-user.jpg" alt="Admin" />
-                    <AvatarFallback>AD</AvatarFallback>
+                    <AvatarImage src="/placeholder-user.jpg" alt={userName} />
+                    <AvatarFallback>{avatarFallback}</AvatarFallback>
                   </Avatar>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[min(20rem,85vw)] max-w-xs">
                 <SheetHeader>
-                  <SheetTitle>Admin User</SheetTitle>
-                  <SheetDescription>admin@acme.inc</SheetDescription>
+                  <SheetTitle>{userName}</SheetTitle>
+                  <SheetDescription>{userEmail}</SheetDescription>
                 </SheetHeader>
+                <Link
+                  href="/dashboard/wallet"
+                  className="mx-4 mt-4 block rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950 shadow-sm transition-transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-50"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                        Credit Balance
+                      </p>
+                      <div className="mt-1 text-2xl font-bold">
+                        {walletLoading ? (
+                          <Skeleton className="h-8 w-32 bg-blue-200 dark:bg-blue-900/70" />
+                        ) : (
+                          `${formatCreditBalance(creditBalance)} credits`
+                        )}
+                      </div>
+                    </div>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
+                      <CreditCard className="h-5 w-5 text-blue-700 dark:text-blue-200" />
+                    </span>
+                  </div>
+                  {walletLoading ? (
+                    <Skeleton className="mt-2 h-4 w-36 bg-blue-200 dark:bg-blue-900/70" />
+                  ) : (
+                    <p className="mt-2 truncate text-xs text-blue-700 dark:text-blue-300">
+                      {activeCompany?.name ?? "Select a company to view credits"}
+                    </p>
+                  )}
+                  {walletLoading ? (
+                    <Skeleton className="mt-1 h-4 w-48 bg-blue-200 dark:bg-blue-900/70" />
+                  ) : wallet ? (
+                    <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                      {formatZmwAmount(wallet.balanceZmwEquivalent)} equivalent · 1 credit ={" "}
+                      {formatZmwAmount(wallet.zmwPerCredit)}
+                    </p>
+                  ) : null}
+                </Link>
                 <Separator className="my-2" />
                 <nav className="p-4">
                   <ul className="space-y-1">
                     <li>
-                      <Link href="/dashboard/settings" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                      <Link href="/dashboard/profile" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
                         <span className="flex items-center gap-3">
                           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -123,12 +215,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       </Link>
                     </li>
                     <li>
-                      <Link href="/dashboard/billing" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                      <Link href="/dashboard/wallet" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
                         <span className="flex items-center gap-3">
                           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                             <CreditCard className="h-4 w-4 text-muted-foreground" />
                           </span>
-                          Billing
+                          Wallet
                         </span>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
@@ -190,7 +282,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             aria-label="Main navigation"
           >
             <nav className="flex flex-col p-4 pb-[env(safe-area-inset-bottom)] space-y-1">
-              {sidebarItems.map((item) => (
+              {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
