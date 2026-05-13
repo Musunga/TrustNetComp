@@ -1,6 +1,7 @@
 "use client"
 
 import type { AssessmentFunction } from "@/lib/types/assessment-detail"
+import { getFunctionControlsCompletionCounts } from "@/lib/constants/functions"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -33,8 +34,8 @@ export function ControlFunctionsList({ functions, onSelectFunction }: ControlFun
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-8 w-24 py-2 text-xs font-medium text-muted-foreground">Code</TableHead>
             <TableHead className="h-8 py-2 text-xs font-medium text-muted-foreground">Name</TableHead>
-            <TableHead className="h-8 w-24 py-2 text-right text-xs font-medium text-muted-foreground">
-              Controls
+            <TableHead className="h-8 min-w-[5rem] whitespace-nowrap py-2 text-right text-xs font-medium text-muted-foreground">
+              Completed / Total
             </TableHead>
             <TableHead className="h-8 w-[1%] py-2 text-right text-xs font-medium text-muted-foreground">
               Actions
@@ -43,13 +44,13 @@ export function ControlFunctionsList({ functions, onSelectFunction }: ControlFun
         </TableHeader>
         <TableBody>
           {functions.map((fn) => {
-            const controlCount =
-              fn.controlAreas?.reduce((s, ca) => s + (ca.controls?.length ?? 0), 0) ?? 0
+            const { completed, total } = getFunctionControlsCompletionCounts(fn)
             return (
               <TableRow
                 key={fn.id}
                 className="cursor-pointer"
                 onClick={() => onSelectFunction(fn)}
+                aria-label={`${fn.name}, ${completed} of ${total} controls completed`}
               >
                 <TableCell className="py-2 font-mono text-xs text-muted-foreground">
                   {fn.code}
@@ -58,7 +59,7 @@ export function ControlFunctionsList({ functions, onSelectFunction }: ControlFun
                   {fn.name}
                 </TableCell>
                 <TableCell className="py-2 text-right text-xs tabular-nums text-muted-foreground">
-                  {controlCount}
+                  {completed}/{total}
                 </TableCell>
                 <TableCell className="py-2 pr-2 text-right">
                   <Button

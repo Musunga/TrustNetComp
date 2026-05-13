@@ -9,3 +9,8 @@ export interface AssignControlProgressBody {
   companyId: string
   memberId: string
 }
+
+export interface SubmitAssessmentForReviewBody {
+  companyFrameworkId: string
+  companyId: string
+}

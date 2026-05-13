@@ -1,14 +1,15 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { assignControlProgress } from "@/lib/actions/compliance-progress"
+import { assignControlProgress, submitAssessmentForReview } from "@/lib/actions/compliance-progress"
 import { fetchCompanyMembers } from "@/lib/actions/companies"
-import { fetchAssessmentDetails, patchComplianceProgress } from "@/lib/actions/frameworks"
+import { fetchAssessmentDetails, fetchAssessmentSummary, patchComplianceProgress } from "@/lib/actions/frameworks"
 import type {
   AssessmentDetail,
   AssessmentControl,
   AssessmentFunction,
 } from "@/lib/types/assessment-detail"
+import type { AssessmentSummary } from "@/lib/types/assessment-summary"
 import type { CompanyMember } from "@/lib/types/company-members"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -44,14 +45,37 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Shield, AlertCircle, RefreshCw, ClipboardList, Calendar, ChevronDown, UserPlus, PenLine, Upload, Loader2, User } from "lucide-react"
-import { toast } from "sonner"
-import { complianceStatusVariant } from "@/lib/constants/functions"
+import {
+  Shield,
+  AlertCircle,
+  RefreshCw,
+  ClipboardList,
+  Calendar,
+  ChevronDown,
+  UserPlus,
+  PenLine,
+  Upload,
+  Loader2,
+  User,
+  ArrowLeft,
+  SendHorizontal,
+  FileText,
+  Award,
+} from "lucide-react"
+import { getApiErrorMessage } from "@/lib/api"
+import {
+  complianceStatusVariant,
+  getAssessmentControlsCompletionCounts,
+  isCompliantComplianceStatusCode,
+  isAssessmentWorkflowCompleted,
+} from "@/lib/constants/functions"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
 import { ViewDefinition, ViewOrchestrator } from "../shared/Pageview"
 import { ControlFunctionsList } from "./ControlFunctionsList"
-import { ArrowLeft } from "lucide-react"
-
+import CertificateDetailScreen from "@/components/screens/CertificateDetail"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { toast } from "sonner"
 
 function parseProgress(value: string): number {
   const num = parseInt(String(value).replace(/%/g, "").trim(), 10)
@@ -66,9 +90,25 @@ function formatDate(iso: string): string {
   })
 }
 
-function isCompliant(statusCode: string): boolean {
-  const c = (statusCode ?? "").toUpperCase().replace(/-/g, "_")
-  return c === "COMPLIANT" || c === "FULLY_COMPLIANT"
+function isAssessmentStatusLikelyInReviewPipeline(status: string): boolean {
+  const u = status.toUpperCase().replace(/\s+/g, "_")
+  return (
+    u.includes("UNDER_REVIEW") ||
+    u.includes("PENDING_REVIEW") ||
+    u.includes("SUBMITTED") ||
+    u.includes("IN_REVIEW") ||
+    u.includes("AWAITING_REVIEW")
+  )
+}
+
+function isAssessmentWorkComplete(
+  summary: AssessmentSummary | null,
+  completedControls: number,
+  totalControls: number
+): boolean {
+  if (summary != null && summary.statistics.totalTasks > 0 && summary.statistics.pendingTasks === 0) return true
+  if (totalControls > 0 && completedControls >= totalControls) return true
+  return false
 }
 
 type AssignedToRaw = string | null | { id?: string; user?: { name?: string; firstName?: string; lastName?: string; email?: string } }
@@ -145,7 +185,7 @@ function FunctionSection({
                 const statusCode = control.progress?.status?.code ?? ""
                 const statusName = (control.progress?.status?.name ?? statusCode) || "—"
                 const completion = control.progress?.completionPercentage ?? 0
-                const compliant = isCompliant(statusCode)
+                const compliant = isCompliantComplianceStatusCode(statusCode)
                 const isAssigned = !!control.progress?.assignedTo
                 const assigneeUser = getAssignedToUserFromRaw(control.progress?.assignedTo as AssignedToRaw)
                 return (
@@ -225,9 +265,12 @@ function FunctionSection({
 export type PageViews = "controlFunctions" | "functionDetail"
 
 export default function AssessmentDetails({ id }: { id: string }) {
+  const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentDetail | null>(null)
+  const [summary, setSummary] = useState<AssessmentSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sendForReviewLoading, setSendForReviewLoading] = useState(false)
   const [selectedFunction, setSelectedFunction] = useState<AssessmentFunction | null>(null)
   const [actionModalControl, setActionModalControl] = useState<AssessmentControl | null>(null)
   const [uploadEvidenceControl, setUploadEvidenceControl] = useState<AssessmentControl | null>(null)
@@ -239,28 +282,54 @@ export default function AssessmentDetails({ id }: { id: string }) {
   const [viewAssigneeControl, setViewAssigneeControl] = useState<AssessmentControl | null>(null)
   const [assigneeMember, setAssigneeMember] = useState<CompanyMember | null>(null)
   const [assigneeLoading, setAssigneeLoading] = useState(false)
-  const [frameworkCardOpen, setFrameworkCardOpen] = useState(true)
+  const [frameworkCardOpen, setFrameworkCardOpen] = useState(false)
+  const [certificateSheetOpen, setCertificateSheetOpen] = useState(false)
 
   const { activeViewId, navigateTo, navigateBack, direction } =
     useViewOrchestrator<PageViews>("controlFunctions")
 
 
-  function load() {
+  async function load() {
     setError(null)
     setLoading(true)
-    return fetchAssessmentDetails(id)
-      .then((data) => {
-        setAssessment(data)
-        return data
-      })
-      .catch(() => setError("Failed to load assessment. Please try again."))
-      .finally(() => setLoading(false))
+    setSummary(null)
+    try {
+      const [data, summaryData] = await Promise.all([
+        fetchAssessmentDetails(id),
+        fetchAssessmentSummary(id).catch(() => null),
+      ])
+      setAssessment(data)
+      setSummary(summaryData)
+    } catch {
+      setError("Failed to load assessment. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function refetchAssessment() {
-    const data = await fetchAssessmentDetails(id).catch(() => null)
+    const [data, summaryData] = await Promise.all([
+      fetchAssessmentDetails(id).catch(() => null),
+      fetchAssessmentSummary(id).catch(() => null),
+    ])
     if (data) setAssessment(data)
+    if (summaryData) setSummary(summaryData)
     return data
+  }
+
+  async function handleSendForReview() {
+    if (!assessment) return
+    setSendForReviewLoading(true)
+    try {
+      const companyFrameworkId = assessment.companyFrameworkId?.trim() || assessment.id
+      await submitAssessmentForReview({ companyFrameworkId, companyId: assessment.companyId })
+      toast.success("Assessment sent for review.")
+      await refetchAssessment()
+    } catch (e) {
+      toast.error(getApiErrorMessage(e) ?? "Could not send assessment for review.")
+    } finally {
+      setSendForReviewLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -311,6 +380,15 @@ export default function AssessmentDetails({ id }: { id: string }) {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button type="button" variant="outline" className="shrink-0 gap-2" onClick={() => router.push("/dashboard/assessments")}>
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Back
+            </Button>
+            <h2 className="truncate text-2xl font-bold tracking-tight">Assessment Details</h2>
+          </div>
+        </div>
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -333,6 +411,11 @@ export default function AssessmentDetails({ id }: { id: string }) {
               </div>
               <Skeleton className="h-2.5 w-full rounded-full" />
             </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-md" />
+              ))}
+            </div>
           </CardContent>
         </Card>
         <div>
@@ -351,8 +434,18 @@ export default function AssessmentDetails({ id }: { id: string }) {
 
   if (error || !assessment) {
     return (
-      <Card className="border-destructive/50">
-        <CardContent className="flex flex-col items-center gap-4 py-4">
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button type="button" variant="outline" className="shrink-0 gap-2" onClick={() => router.push("/dashboard/assessments")}>
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Back
+            </Button>
+            <h2 className="text-2xl font-bold tracking-tight">Assessment Details</h2>
+          </div>
+        </header>
+        <Card className="border-destructive/50">
+          <CardContent className="flex flex-col items-center gap-4 py-4">
           <AlertCircle className="h-12 w-12 text-destructive" />
           <p className="text-center text-sm text-muted-foreground">{error ?? "Assessment not found."}</p>
           <Button variant="outline" onClick={load} className="gap-2">
@@ -361,15 +454,30 @@ export default function AssessmentDetails({ id }: { id: string }) {
           </Button>
         </CardContent>
       </Card>
+      </div>
     )
   }
 
   const overallProgress = parseProgress(assessment.progress)
-  const totalControls = assessment.functions?.reduce(
-    (sum, fn) => sum + (fn.controlAreas?.reduce((s, ca) => s + (ca.controls?.length ?? 0), 0) ?? 0),
-    0
-  ) ?? 0
+  const displayStatus = summary?.assessmentStatus ?? assessment.status
+  const displayProgress =
+    summary != null
+      ? Math.min(100, Math.max(0, Math.round(summary.overallProgress)))
+      : overallProgress
+  const displayDueDate = summary?.dueDate ?? assessment.dueDate
+  const displayUpdatedAt = summary?.updatedAt ?? assessment.updatedAt
+  const { completed: assessmentCompletedControls, total: totalControls } =
+    getAssessmentControlsCompletionCounts(assessment.functions)
 
+  const showSendForReview =
+    !isAssessmentWorkflowCompleted(displayStatus) &&
+    !isAssessmentStatusLikelyInReviewPipeline(displayStatus) &&
+    isAssessmentWorkComplete(summary, assessmentCompletedControls, totalControls)
+
+  const showViewCertificate = isAssessmentWorkflowCompleted(displayStatus)
+  const certificateIdForLink =
+    assessment.certificateId?.trim() || assessment.framework.certificateId?.trim() || ""
+  console.log(certificateIdForLink)
   const views: ViewDefinition<PageViews>[] = [
     {
       id: "controlFunctions",
@@ -668,6 +776,53 @@ export default function AssessmentDetails({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button type="button" variant="outline" className="shrink-0 gap-2" onClick={() => router.push("/dashboard/assessments")}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Back
+          </Button>
+          <h2 className="truncate text-2xl font-bold tracking-tight">Assessment Details</h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <Button variant="outline" className="gap-2" asChild>
+            <Link href={`/dashboard/assessments/${id}/report`}>
+              <FileText className="h-4 w-4" aria-hidden />
+              View report
+            </Link>
+          </Button>
+          {showSendForReview ? (
+            <Button
+              type="button"
+              className="gap-2"
+              disabled={sendForReviewLoading}
+              onClick={() => void handleSendForReview()}
+            >
+              {sendForReviewLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Sending…
+                </>
+              ) : (
+                <>
+                  <SendHorizontal className="h-4 w-4" aria-hidden />
+                  Send for review
+                </>
+              )}
+            </Button>
+          ) : showViewCertificate && certificateIdForLink ? (
+            <Button
+              type="button"
+              variant="default"
+              className="gap-2"
+              onClick={() => setCertificateSheetOpen(true)}
+            >
+              <Award className="h-4 w-4" aria-hidden />
+              View certificate
+            </Button>
+          ) : null}
+        </div>
+      </header>
       <Collapsible open={frameworkCardOpen} onOpenChange={setFrameworkCardOpen}>
         <Card>
           <CardHeader className="py-0">
@@ -683,16 +838,16 @@ export default function AssessmentDetails({ id }: { id: string }) {
                     ({assessment.framework.code})
                   </span>
                 </CardTitle>
-                <Badge variant={complianceStatusVariant(assessment.status)} className="text-xs">
-                  {assessment.status.replace(/_/g, " ")}
+                <Badge variant={complianceStatusVariant(displayStatus)} className="text-xs">
+                  {displayStatus.replace(/_/g, " ")}
                 </Badge>
-                <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    Year {assessment.year}
+                    Year {summary?.year ?? assessment.year}
                   </span>
-                  {assessment.dueDate && <span>Due {formatDate(assessment.dueDate)}</span>}
-                  <span>Updated {formatDate(assessment.updatedAt)}</span>
+                  {displayDueDate && <span>Due {formatDate(displayDueDate)}</span>}
+                  <span>Updated {formatDate(displayUpdatedAt)}</span>
                 </span>
                 <ChevronDown
                   className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform ${frameworkCardOpen ? "rotate-180" : ""}`}
@@ -702,28 +857,61 @@ export default function AssessmentDetails({ id }: { id: string }) {
             </CollapsibleTrigger>
           </CardHeader>
           <CollapsibleContent>
-            <CardContent className="space-y-2 pt-0">
+            <CardContent className="space-y-4 pt-0">
+              {summary?.companyName ? (
+                <p className="text-sm text-muted-foreground">
+                  Company <span className="font-medium text-foreground">{summary.companyName}</span>
+                </p>
+              ) : null}
               {assessment.framework.description && (
                 <CardDescription className="text-xs">{assessment.framework.description}</CardDescription>
               )}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Overall progress</span>
-                  <span className="font-medium tabular-nums">{overallProgress}%</span>
+                  <span className="font-medium tabular-nums">{displayProgress}%</span>
                 </div>
-                <Progress value={overallProgress} className="h-2" />
+                <Progress value={displayProgress} className="h-2" />
               </div>
+              {summary ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">Task overview</p>
+                  <div className="flex flex-col divide-y divide-border md:flex-row md:divide-y-0 md:divide-x md:items-center md:justify-between">
+                    <div className="flex-1 py-4 md:py-2 md:pr-6">
+                      <div className="text-sm text-muted-foreground">Total tasks</div>
+                      <div className="mt-1 text-2xl font-bold tabular-nums">
+                        {summary.statistics.totalTasks}
+                      </div>
+                    </div>
+                    <div className="flex-1 py-4 md:py-2 md:px-6">
+                      <div className="text-sm text-muted-foreground">Completed</div>
+                      <div className="mt-1 text-2xl font-bold tabular-nums">
+                        {summary.statistics.completedTasks}
+                      </div>
+                    </div>
+                    <div className="flex-1 py-4 md:py-2 md:pl-6">
+                      <div className="text-sm text-muted-foreground">Pending</div>
+                      <div className="mt-1 text-2xl font-bold tabular-nums">
+                        {summary.statistics.pendingTasks}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
 
       <div>
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+        <h2 className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold">
           <ClipboardList className="h-5 w-5 text-muted-foreground" />
-          Controls by function        {totalControls > 0 && (
-              <span className="text-muted-foreground">({totalControls})</span>
-            )}
+          Controls by function
+          {totalControls > 0 ? (
+            <span className="font-semibold tabular-nums text-muted-foreground">
+              ({assessmentCompletedControls}/{totalControls})
+            </span>
+          ) : null}
         </h2>
         <ScrollArea className="h-[calc(100vh-20rem)] rounded-lg border bg-muted/20">
           <ViewOrchestrator
@@ -733,6 +921,23 @@ export default function AssessmentDetails({ id }: { id: string }) {
           />
         </ScrollArea>
       </div>
+
+      {showViewCertificate && certificateIdForLink ? (
+        <Sheet open={certificateSheetOpen} onOpenChange={setCertificateSheetOpen}>
+          <SheetContent
+            side="right"
+            className="flex w-full max-h-dvh flex-col gap-0 overflow-y-auto p-0 sm:max-w-4xl"
+          >
+            <SheetHeader className="shrink-0 border-b px-6 py-4">
+              <SheetTitle>Certificate</SheetTitle>
+              <SheetDescription>Accreditation issued for this assessment.</SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 px-6 pb-8 pt-4">
+              <CertificateDetailScreen key={certificateIdForLink} id={certificateIdForLink} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </div>
   )
 }

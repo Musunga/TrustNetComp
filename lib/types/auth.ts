@@ -28,8 +28,8 @@ export interface LoginResponseI {
   memberships: MembershipI[];
   activeMembership: MembershipI | null;
   selectedCompanyId: string | null;
-  requiresCompanySelection: boolean;
-  message: string;
+  requiresCompanySelection?: boolean;
+  message?: string;
 }
 
 export interface AuthSessionI {
@@ -75,4 +75,6 @@ export interface UserI {
   phoneNumber: string;
   timezone:    string;
   bio:         string;
+  /** Present on some login responses when API tracks product tour completion. */
+  hasToured?: boolean;
 }

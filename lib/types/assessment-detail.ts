@@ -54,10 +54,16 @@ export interface AssessmentDetailFramework {
   description: string;
   version: string;
   effectiveDate: string;
+  /** Issued certificate UUID when returned by the assessment API. */
+  certificateId?: string | null;
 }
 
 export interface AssessmentDetail {
   id: string;
+  /** When present on the enrollment root, overrides framework.certificateId for links. */
+  certificateId?: string | null;
+  /** Enrollment id when the API returns it separately from assessment `id`. */
+  companyFrameworkId?: string;
   companyId: string;
   year: number;
   framework: AssessmentDetailFramework;

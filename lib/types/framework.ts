@@ -21,15 +21,17 @@ export interface FrameworkCompanyResponse {
 }
 
 export interface Assessment {
-  id:        string;
-  companyId: string;
-  year:      number;
-  framework: AssessmentFramework;
-  status:    string;
-  progress:  string;
-  dueDate:   null;
-  createdAt: Date;
-  updatedAt: Date;
+  id: string
+  companyId: string
+  year: number
+  framework: AssessmentFramework
+  status: string
+  progress: string
+  dueDate: null
+  createdAt: Date
+  updatedAt: Date
+  /** Company–framework enrollment id when returned separately from assessment `id`; used for assisted requests. */
+  companyFrameworkId?: string
 }
 
 export interface AssessmentFramework {
@@ -38,5 +40,6 @@ export interface AssessmentFramework {
   name:          string;
   description:   string;
   version:       string;
-  effectiveDate: Date;
+  effectiveDate: Date | string;
+  certificateId?: string | null;
 }

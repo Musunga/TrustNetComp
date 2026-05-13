@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { FileUpload } from "@/components/shared/FileUpload"
+import { toast } from "sonner"
 
 const COMPLIANCE_OPTIONS = [
   { value: "COMPLIANT", label: "Compliant" },
@@ -66,6 +67,7 @@ export function ControlStatusSheet({
       setAssignedToComment(initialComment)
       setFiles([])
       setSaveError(null)
+      setSaving(false) 
     }
   }, [open, initialStatusCode, initialComment])
 
@@ -79,6 +81,7 @@ export function ControlStatusSheet({
         assignedToComment: assignedToComment.trim(),
         attachedEvidence: [],
       })
+      toast.success("Control updated successfully")
       onOpenChange(false)
     } catch {
       setSaveError("Failed to update. Please try again.")
@@ -89,7 +92,14 @@ export function ControlStatusSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex max-h-dvh w-1/4 flex-col p-0 sm:w-1/3 sm:max-w-none">
+<SheetContent side="right" className="flex max-h-dvh w-1/4 flex-col p-0 sm:w-1/3 sm:max-w-none">
+<div className="relative flex flex-col flex-1 min-h-0">
+{saving && (
+      <div className="absolute inset-0 z-60 flex flex-col items-center justify-center gap-3 bg-background/10 backdrop-blur-xs">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+        <p className="text-sm text-muted-foreground">Saving…</p>
+      </div>
+    )}
       <ScrollArea className="min-h-0 flex-1 px-6">
         <SheetHeader className="shrink-0 px-6 pt-6">
           <SheetTitle>Update control status</SheetTitle>
@@ -161,6 +171,7 @@ export function ControlStatusSheet({
             {saving ? "Saving…" : "Save"}
           </Button>
         </SheetFooter>
+        </div>
       </SheetContent>
     </Sheet>
   )

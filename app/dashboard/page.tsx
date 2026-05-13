@@ -1,24 +1,59 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
 import FrameworksList from "@/components/screens/FrameworksList"
 import RecentActivity from "@/components/screens/RecentActivity"
 import CompanySelector from "@/components/screens/CompanySelector"
 import MemberBreakdown from "@/components/screens/MemberBreakdown"
 import TechnicalAdminDashboard from "@/components/screens/TechnicalAdminDashboard"
+import { Skeleton } from "@/components/ui/skeleton"
 import { authSessionAtom } from "@/lib/store/auth"
-import { authSessionHasRole } from "@/lib/constants/functions"
+import { authSessionIsTechnicalAdmin } from "@/lib/constants/functions"
 import { useAtomValue } from "jotai"
 
-
+function DashboardHydrationSkeleton() {
+  return (
+    <div className="flex flex-col space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-[min(100%,36rem)]" />
+        </div>
+        <Skeleton className="h-9 w-44 shrink-0" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Skeleton className="h-88 rounded-xl lg:col-span-5" />
+        <Skeleton className="h-88 rounded-xl lg:col-span-2" />
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const authSession = useAtomValue(authSessionAtom)
-  const isTechnicalAdmin = authSessionHasRole(authSession, "TECHNICAL_ADMIN")
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isTechnicalAdmin = authSessionIsTechnicalAdmin(authSession)
 
   return (
     <DashboardShell>
-      {isTechnicalAdmin ? <TechnicalAdminDashboard /> : <CompanyAdminDashboard />}
+      {!mounted ? (
+        <DashboardHydrationSkeleton />
+      ) : isTechnicalAdmin ? (
+        <TechnicalAdminDashboard />
+      ) : (
+        <CompanyAdminDashboard />
+      )}
     </DashboardShell>
   )
 }

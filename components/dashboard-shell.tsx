@@ -39,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { BrandLogo } from "@/components/brand-logo"
 import { HexagonPatternLeft } from "@/components/shared/HexagonPatternLeft"
 import { activeCompanyAtom, authSessionAtom } from "@/lib/store/auth"
-import { authSessionHasRole, formatCreditBalance, formatZmwAmount, getWalletCreditBalance } from "@/lib/constants/functions"
+import { authSessionIsTechnicalAdmin, formatCreditBalance, formatZmwAmount, getWalletCreditBalance } from "@/lib/constants/functions"
 import { fetchCompanyWallet } from "@/lib/actions/wallet"
 import type { CompanyWalletResponse } from "@/lib/types/wallet"
 import { useAtomValue } from "jotai"
@@ -69,11 +69,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const authSession = useAtomValue(authSessionAtom)
   const activeCompany = useAtomValue(activeCompanyAtom)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const [wallet, setWallet] = React.useState<CompanyWalletResponse | null>(null)
   const [walletLoading, setWalletLoading] = React.useState(false)
-  const navItems = authSessionHasRole(authSession, "TECHNICAL_ADMIN")
-    ? technicalAdminSidebarItems
-    : sidebarItems
+  const isTechnicalAdmin = authSessionIsTechnicalAdmin(authSession)
+  const showCompanyWallet = mounted && !isTechnicalAdmin
+  const navItems = isTechnicalAdmin ? technicalAdminSidebarItems : sidebarItems
   const user = authSession?.user
   const userName = user?.name || `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Admin User"
   const userEmail = user?.email || "admin@acme.inc"
@@ -86,7 +87,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const creditBalance = getWalletCreditBalance(wallet)
 
   React.useEffect(() => {
-    if (!activeCompany?.id) {
+    setMounted(true)
+  }, [])
+
+  React.useEffect(() => {
+    if (!showCompanyWallet || !activeCompany?.id) {
       setWallet(null)
       setWalletLoading(false)
       return
@@ -108,7 +113,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => {
       ignore = true
     }
-  }, [activeCompany?.id])
+  }, [activeCompany?.id, showCompanyWallet])
 
   return (
     <div className="relative flex min-h-screen flex-col min-w-0">
@@ -163,44 +168,46 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   <SheetTitle>{userName}</SheetTitle>
                   <SheetDescription>{userEmail}</SheetDescription>
                 </SheetHeader>
-                <Link
-                  href="/dashboard/wallet"
-                  className="mx-4 mt-4 block rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950 shadow-sm transition-transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-50"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
-                        Credit Balance
-                      </p>
-                      <div className="mt-1 text-2xl font-bold">
-                        {walletLoading ? (
-                          <Skeleton className="h-8 w-32 bg-blue-200 dark:bg-blue-900/70" />
-                        ) : (
-                          `${formatCreditBalance(creditBalance)} credits`
-                        )}
+                {showCompanyWallet ? (
+                  <Link
+                    href="/dashboard/wallet"
+                    className="mx-4 mt-4 block rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950 shadow-sm transition-transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-50"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                          Credit Balance
+                        </p>
+                        <div className="mt-1 text-2xl font-bold">
+                          {walletLoading ? (
+                            <Skeleton className="h-8 w-32 bg-blue-200 dark:bg-blue-900/70" />
+                          ) : (
+                            `${formatCreditBalance(creditBalance)} credits`
+                          )}
+                        </div>
                       </div>
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
+                        <CreditCard className="h-5 w-5 text-blue-700 dark:text-blue-200" />
+                      </span>
                     </div>
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/70">
-                      <CreditCard className="h-5 w-5 text-blue-700 dark:text-blue-200" />
-                    </span>
-                  </div>
-                  {walletLoading ? (
-                    <Skeleton className="mt-2 h-4 w-36 bg-blue-200 dark:bg-blue-900/70" />
-                  ) : (
-                    <p className="mt-2 truncate text-xs text-blue-700 dark:text-blue-300">
-                      {activeCompany?.name ?? "Select a company to view credits"}
-                    </p>
-                  )}
-                  {walletLoading ? (
-                    <Skeleton className="mt-1 h-4 w-48 bg-blue-200 dark:bg-blue-900/70" />
-                  ) : wallet ? (
-                    <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                      {formatZmwAmount(wallet.balanceZmwEquivalent)} equivalent · 1 credit ={" "}
-                      {formatZmwAmount(wallet.zmwPerCredit)}
-                    </p>
-                  ) : null}
-                </Link>
-                <Separator className="my-2" />
+                    {walletLoading ? (
+                      <Skeleton className="mt-2 h-4 w-36 bg-blue-200 dark:bg-blue-900/70" />
+                    ) : (
+                      <p className="mt-2 truncate text-xs text-blue-700 dark:text-blue-300">
+                        {activeCompany?.name ?? "Select a company to view credits"}
+                      </p>
+                    )}
+                    {walletLoading ? (
+                      <Skeleton className="mt-1 h-4 w-48 bg-blue-200 dark:bg-blue-900/70" />
+                    ) : wallet ? (
+                      <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                        {formatZmwAmount(wallet.balanceZmwEquivalent)} equivalent · 1 credit ={" "}
+                        {formatZmwAmount(wallet.zmwPerCredit)}
+                      </p>
+                    ) : null}
+                  </Link>
+                ) : null}
+                {showCompanyWallet ? <Separator className="my-2" /> : <Separator className="my-2 mt-4" />}
                 <nav className="p-4">
                   <ul className="space-y-1">
                     <li>
@@ -214,17 +221,22 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </Link>
                     </li>
-                    <li>
-                      <Link href="/dashboard/wallet" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
-                        <span className="flex items-center gap-3">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    {showCompanyWallet ? (
+                      <li>
+                        <Link
+                          href="/dashboard/wallet"
+                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                              <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            </span>
+                            Wallet
                           </span>
-                          Wallet
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Link>
-                    </li>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </Link>
+                      </li>
+                    ) : null}
                     <li className="pt-2">
                       <a href="mailto:support@trustnetcomp.com" className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
                         <span className="flex items-center gap-3">

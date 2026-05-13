@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useSetAtom } from "jotai"
-import { Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { login as loginAction, register as registerAction } from "@/lib/actions/auth"
 import { getApiErrorMessage } from "@/lib/api"
+import { authSessionFromLogin } from "@/lib/utils/auth-login-response"
 import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables"
 import { authSessionAtom } from "@/lib/store/auth"
 
@@ -29,6 +30,7 @@ export function AuthForm() {
   const [step, setStep] = React.useState(0)
   const totalSteps = 7
   const [showPassword, setShowPassword] = React.useState(false)
+  const [showLoginPassword, setShowLoginPassword] = React.useState(false)
   const [loginError, setLoginError] = React.useState<string | null>(null)
   const [values, setValues] = React.useState({
     firstName: "",
@@ -57,14 +59,7 @@ export function AuthForm() {
     const password = (formData.get("password") as string) ?? ""
     try {
       const data = await loginAction(email, password)
-      setAuthSession({
-        user: data.user,
-        memberships: data.memberships,
-        activeMembership: data.activeMembership,
-        selectedCompanyId: data.selectedCompanyId,
-        requiresCompanySelection: data.requiresCompanySelection,
-        message: data.message,
-      })
+      setAuthSession(authSessionFromLogin(data))
       if (data.token) {
         localStorage.setItem(ACCESS_TOKEN_COOKIE_NAME, data.token)
         const res = await fetch("/api/auth/set-session", {
@@ -109,12 +104,8 @@ export function AuthForm() {
       }
       if (data.user && Array.isArray(data.memberships)) {
         setAuthSession({
-          user: data.user,
-          memberships: data.memberships,
-          activeMembership: data.activeMembership ?? null,
-          selectedCompanyId: data.selectedCompanyId ?? null,
-          requiresCompanySelection: !!data.requiresCompanySelection,
-          message: data.message ?? "Account created",
+          ...authSessionFromLogin(data),
+          message: typeof data.message === "string" && data.message.trim() ? data.message : "Account created",
         })
       }
       router.push("/dashboard")
@@ -241,7 +232,30 @@ export function AuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" autoComplete="off" required />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showLoginPassword ? "text" : "password"}
+                      autoComplete="off"
+                      required
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowLoginPassword((v) => !v)}
+                      aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="mt-4 md:mt-6">

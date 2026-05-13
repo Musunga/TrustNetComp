@@ -1,20 +1,20 @@
 "use client"
 
+import Link from "next/link"
 import { fetchCompanyAssessments } from "@/lib/actions/frameworks"
 import { activeCompanyAtom } from "@/lib/store/auth"
-import { Assessment } from "@/lib/types"
+import type { Assessment } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Separator } from "@radix-ui/react-dropdown-menu"
 import { Progress } from "@radix-ui/react-progress"
 import { useAtomValue } from "jotai"
-import { TrendingUp, Shield, Calendar } from "lucide-react"
-import Link from "next/link"
+import { Shield, Calendar, FileText } from "lucide-react"
 import { Badge } from "../ui/badge"
 import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card"
+import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
-import { formatDate, parseProgress, statusVariant } from "@/lib/constants/functions"
-
+import { formatDate, parseProgress, statusVariant, resolveCompanyFrameworkEnrollmentId } from "@/lib/constants/functions"
 
 const AssessmentsList = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([])
@@ -34,15 +34,14 @@ const AssessmentsList = () => {
       .finally(() => setLoading(false))
   }, [activeCompany?.id])
 
-  
   if (loading) {
     return (
       <Card className="col-span-4">
         <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          List of all your assessments
-        </CardTitle>
-        <CardDescription>Assessment progress and status by framework</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            List of all your assessments
+          </CardTitle>
+          <CardDescription>Assessment progress and status by framework</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {[1, 2, 3, 4].map((i) => (
@@ -86,18 +85,21 @@ const AssessmentsList = () => {
             {assessments.map((assessment) => {
               const progress = parseProgress(assessment.progress)
               const variant = statusVariant(assessment.status)
+              const enrollmentId = resolveCompanyFrameworkEnrollmentId(assessment)
               return (
                 <li key={assessment.id}>
-                  <Link
-                    href={`/dashboard/assessments/${assessment.id}`}
+                  <div
                     className={cn(
-                      "group block  p-4 transition-colors hover:bg-muted/30  focus-visible:ring-2 focus-visible:ring-ring/30",
-                      progress === 100 && "border-primary/20 bg-primary/5"
+                      "group rounded-lg p-4 transition-colors hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring/30",
+                      progress === 100 && "border border-primary/20 bg-primary/5"
                     )}
-                    aria-label={`Open assessment ${assessment.framework.name}`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 flex-1 space-y-1">
+                      <Link
+                        href={`/dashboard/assessments/${enrollmentId}`}
+                        className="min-w-0 flex-1 space-y-1"
+                        aria-label={`Open assessment ${assessment.framework.name}`}
+                      >
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium leading-tight group-hover:underline">
                             {assessment.framework.name}
@@ -106,29 +108,36 @@ const AssessmentsList = () => {
                             {assessment.status.replace(/_/g, " ")}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3.5 w-3.5" />
                             {assessment.year}
                           </span>
                           <span>Updated {formatDate(assessment.updatedAt)}</span>
                         </div>
+                      </Link>
+                      <div className="flex shrink-0 flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                        <div className="flex items-center gap-3 sm:w-40">
+                          <Progress value={progress} className="h-2 flex-1" />
+                          <span
+                            className={cn(
+                              "tabular-nums font-medium",
+                              progress === 100 ? "text-primary" : "text-muted-foreground"
+                            )}
+                          >
+                            {progress}%
+                          </span>
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full shrink-0 gap-2 sm:w-auto" asChild>
+                          <Link href={`/dashboard/assessments/${enrollmentId}/report`}>
+                            <FileText className="h-4 w-4" aria-hidden />
+                            View report
+                          </Link>
+                        </Button>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3 sm:w-40">
-                        <Progress value={progress} className="h-2 flex-1" />
-                        <span
-                          className={cn(
-                            "tabular-nums font-medium",
-                            progress === 100 ? "text-primary" : "text-muted-foreground"
-                          )}
-                        >
-                          {progress}%
-                        </span>
-                      </div>
-                   
                     </div>
                     <Separator className="my-2 " />
-                  </Link>
+                  </div>
                 </li>
               )
             })}

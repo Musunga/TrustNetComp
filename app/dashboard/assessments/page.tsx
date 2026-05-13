@@ -1,10 +1,7 @@
-import Link from "next/link"
 import { DashboardShell } from "@/components/dashboard-shell"
 import AssessmentsList from "@/components/screens/AssessmentsList"
 
 export default async function Page() {
-
-
   return (
     <DashboardShell>
       <div className="flex flex-col space-y-6">
@@ -14,7 +11,6 @@ export default async function Page() {
           </div>
         </div>
         <AssessmentsList />
-
       </div>
     </DashboardShell>
   )

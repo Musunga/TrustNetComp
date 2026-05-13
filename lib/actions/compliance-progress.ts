@@ -1,9 +1,12 @@
 "use server"
 
-import api from "../api"
+import api, { getApiErrorMessage } from "../api"
 import { getAuthHeaders } from "../auth-headers"
 import { API_ROUTES } from "../constants/api-routes"
-import type { AssignControlProgressBody } from "../types/compliance-progress"
+import type {
+  AssignControlProgressBody,
+  SubmitAssessmentForReviewBody,
+} from "../types/compliance-progress"
 import type { UserComplianceTasksResponse } from "../types/user-compliance-tasks"
 
 export async function fetchUserComplianceTasks(
@@ -34,4 +37,15 @@ export async function assignControlProgress(
     "response",response.data
    )
   return response.data
+}
+
+export async function submitAssessmentForReview(body: SubmitAssessmentForReviewBody): Promise<void> {
+  const headers = await getAuthHeaders()
+  try {
+    await api.post(API_ROUTES.COMPLIANCE_PROGRESS.SUBMIT_ASSESSMENT, body, { headers })
+  } catch (e) {
+    const msg =
+      getApiErrorMessage(e) ?? (e instanceof Error ? e.message : "Could not send assessment for review.")
+    throw new Error(msg)
+  }
 }

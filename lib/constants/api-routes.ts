@@ -50,9 +50,16 @@ export const API_ROUTES = {
     LIST: "/api/assessments",
     CREATE: "/api/assessments",
     GET: (id: string | number) => `/api/assessments/${id}`,
+    SUMMARY: (id: string | number) => `/api/assessments/${id}/summary`,
     UPDATE: (id: string | number) => `/api/assessments/${id}`,
     DELETE: (id: string | number) => `/api/assessments/${id}`,
+    REPORT_DATA: (id: string | number) => `/api/assessments/${id}/report-data`,
     ASSISTED_REQUEST: "/api/assessments/assisted-request",
+  },
+
+  ASSISTED_ASSESSMENTS: {
+    REQUEST: "/api/assisted-assessments",
+    ALL_REQUESTS: "/api/assisted-assessments/all-requests",
   },
 
   // Dashboard
@@ -70,7 +77,11 @@ export const API_ROUTES = {
 
   // Wallet
   WALLET: {
+    FEATURE_PRICING: "/api/wallet/config/feature-pricing",
     GET_BY_COMPANY: (companyId: string | number) => `/api/wallet/${companyId}`,
+    TRANSACTIONS: (companyId: string | number) => `/api/wallet/${companyId}/transactions`,
+    LOAD_MOBILE_MONEY: (companyId: string | number) =>
+      `/api/wallet/${companyId}/load/mobile-money`,
   },
 
   // Technical review
@@ -85,6 +96,7 @@ export const API_ROUTES = {
       `/api/compliance-progress/${controlProgressId}`,
     ASSIGN: (controlProgressId: string) =>
       `/api/compliance-progress/${controlProgressId}/assign`,
+    SUBMIT_ASSESSMENT: "/api/compliance-progress/submit-assessment",
     USER_TASKS: (userId: string, companyId: string) =>
       `/api/compliance-progress/user/${userId}/company/${companyId}`,
   },
@@ -92,6 +104,10 @@ export const API_ROUTES = {
   // User roles
   USER_ROLES: {
     ROLES: "/api/user-roles/roles",
+  },
+
+  CERTIFICATES: {
+    GET: (id: string) => `/api/certificates/${id}`,
   },
 
   // Invitations

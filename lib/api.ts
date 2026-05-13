@@ -2,7 +2,7 @@ import axios from "axios"
 import { ACCESS_TOKEN_COOKIE_NAME, BASE_URL } from "./constants/variables"
 import type { ApiValidationErrorBody } from "@/lib/types/response"
 
-const computedBaseURL = typeof window === "undefined" ? BASE_URL : ""
+const computedBaseURL = BASE_URL
 
 export const api = axios.create({
   baseURL: computedBaseURL,
@@ -56,37 +56,60 @@ if (process.env.NODE_ENV !== "production") {
 
 export function getApiErrorMessage(error: unknown): string | null {
   if (!error || typeof error !== "object") return null
-  const err = error as { response?: { data?: unknown; status?: number } }
+  const err = error as {
+    response?: { data?: unknown; status?: number; statusText?: string }
+    message?: string
+  }
+
+  const status = err.response?.status
   const data = err.response?.data
-  if (!data || typeof data !== "object") return null
-  const d = data as Record<string, unknown>
-  if (typeof d.message === "string") return d.message
-  if (typeof d.error === "string") return d.error
-  const errorObj = d.error
-  if (errorObj && typeof errorObj === "object" && !Array.isArray(errorObj)) {
-    const e = errorObj as ApiValidationErrorBody
-    const messages: string[] = []
-    if (Array.isArray(e.formErrors)) {
-      e.formErrors.forEach((m) => typeof m === "string" && messages.push(m))
+
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    const d = data as Record<string, unknown>
+    if (typeof d.message === "string") return d.message
+    if (typeof d.error === "string") return d.error
+    const errorObj = d.error
+    if (errorObj && typeof errorObj === "object" && !Array.isArray(errorObj)) {
+      const e = errorObj as ApiValidationErrorBody
+      const messages: string[] = []
+      if (Array.isArray(e.formErrors)) {
+        e.formErrors.forEach((m) => typeof m === "string" && messages.push(m))
+      }
+      if (e.fieldErrors && typeof e.fieldErrors === "object") {
+        Object.values(e.fieldErrors).forEach((arr) => {
+          if (Array.isArray(arr)) arr.forEach((m) => typeof m === "string" && messages.push(m))
+        })
+      }
+      if (messages.length > 0) return messages.join(" • ")
     }
-    if (e.fieldErrors && typeof e.fieldErrors === "object") {
-      Object.values(e.fieldErrors).forEach((arr) => {
-        if (Array.isArray(arr)) arr.forEach((m) => typeof m === "string" && messages.push(m))
-      })
+    if (Array.isArray(d.errors) && d.errors.length > 0) {
+      const first = d.errors[0]
+      if (typeof first === "string") return first
+      if (
+        first &&
+        typeof first === "object" &&
+        typeof (first as { message?: string }).message === "string"
+      )
+        return (first as { message: string }).message
     }
-    if (messages.length > 0) return messages.join(" • ")
+    if (d.errors && typeof d.errors === "object" && !Array.isArray(d.errors)) {
+      const entries = Object.values(d.errors as Record<string, unknown>)
+      const firstMsg = entries.flat().find((v) => typeof v === "string")
+      if (typeof firstMsg === "string") return firstMsg
+    }
   }
-  if (Array.isArray(d.errors) && d.errors.length > 0) {
-    const first = d.errors[0]
-    if (typeof first === "string") return first
-    if (first && typeof first === "object" && typeof (first as { message?: string }).message === "string") return (first as { message: string }).message
+
+  if (typeof status === "number") {
+    const suffix = typeof err.response?.statusText === "string" ? err.response.statusText : ""
+    if (suffix.trim()) return `${status} ${suffix}`.trim()
+    return status === 404 ? "Not found (404)." : `Request failed (${status}).`
   }
-  if (d.errors && typeof d.errors === "object" && !Array.isArray(d.errors)) {
-    const entries = Object.values(d.errors as Record<string, unknown>)
-    const firstMsg = entries.flat().find((v) => typeof v === "string")
-    if (typeof firstMsg === "string") return firstMsg
+
+  if (axios.isAxiosError(error) && typeof error.message === "string" && error.message) {
+    return error.message
   }
+
   return null
 }
 
-export default api;
+export default api
