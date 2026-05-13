@@ -59,6 +59,7 @@ function mapEngagement(row: unknown, index: number): AssistedAssessmentEngagemen
   const r = asRecord(row) ?? {}
   const company = asRecord(r.company) ?? {}
   const framework = asRecord(r.framework) ?? {}
+  const companyFramework = asRecord(r.companyFramework ?? r.company_framework) ?? {}
   const assigned = Array.isArray(r.assignedMembers) ? r.assignedMembers : []
 
   return {
@@ -81,7 +82,7 @@ function mapEngagement(row: unknown, index: number): AssistedAssessmentEngagemen
       code: framework.code == null ? null : firstString(framework.code, framework.slug),
     },
     companyFrameworkId: String(
-      r.companyFrameworkId ?? r.company_framework_id ?? r.companyFramework?.id ?? ""
+      r.companyFrameworkId ?? r.company_framework_id ?? companyFramework.id ?? ""
     ),
     progress: mapProgress(r.progress),
     requestedBy: mapParty(r.requestedBy ?? r.requested_by ?? r.requester),

@@ -62,5 +62,4 @@ export interface AssessmentReportData {
   overall: AssessmentReportOverall
   functions: AssessmentReportFunctionSection[]
   maturityLevel: AssessmentReportMaturityLevel
-  certificate: unknown | null
 }

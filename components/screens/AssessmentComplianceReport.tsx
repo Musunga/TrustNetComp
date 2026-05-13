@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react"
 import type { AssessmentReportData } from "@/lib/types/assessment-report-data"
+import { TrustNetReportWatermark } from "@/components/screens/trustnet-report-watermark"
 
 const pdfInk = "#171717"
 const pdfBody = "#373737"
@@ -30,7 +31,9 @@ function formatReportDateOnly(iso: string): string {
 }
 
 export function AssessmentComplianceReport({ data }: { data: AssessmentReportData }) {
-  const { meta, overall: o, functions: fnSections, maturityLevel, certificate } = data
+  const { meta, overall: o, functions: fnSections, maturityLevel } = data
+
+  const completionScorePct = Math.min(100, Math.max(0, Math.round(o.addressedPct)))
 
   const overallBody: ReadonlyArray<{ label: string; count: number; pct: string }> = [
     { label: "Total controls", count: o.totalControls, pct: "—" },
@@ -39,30 +42,92 @@ export function AssessmentComplianceReport({ data }: { data: AssessmentReportDat
     { label: "Not addressed", count: o.notAddressed, pct: `${o.notAddressedPct}%` },
   ]
 
-  const metaLines = [
-    `Company: ${meta.companyName}`,
-    `Framework: ${meta.frameworkName} (${meta.frameworkCode})`,
-    `Year: ${meta.complianceYear}   Type: ${meta.type}`,
-    `Status: ${meta.assessmentStatus.replace(/_/g, " ")}`,
-    `Generated: ${formatReportTimestamp(meta.generatedAt)}`,
-    ...(meta.dueDate ? [`Due: ${formatReportDateOnly(meta.dueDate)}`] : []),
-    `Assessment ID: ${meta.assessmentId}`,
-  ]
+  const labelCls = "font-bold text-neutral-900"
 
   return (
     <article
-      className="assessment-compliance-report mx-auto max-w-[210mm] rounded-sm border border-neutral-300 bg-white px-[14mm] py-10 font-sans shadow-sm print:border-0 print:py-8 print:shadow-none"
+      className="assessment-compliance-report relative isolate mx-auto max-w-[210mm] rounded-sm border border-neutral-300 bg-white px-[14mm] py-10 font-sans shadow-sm print:border-0 print:py-8 print:shadow-none"
       style={{ color: pdfBody }}
     >
-      <header>
-        <h1 className="text-[16pt] font-bold leading-tight" style={{ color: pdfInk }}>
-          Compliance assessment report
-        </h1>
-        <ul className="mt-4 list-none space-y-1 text-[10pt] leading-snug">
-          {metaLines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
+      <TrustNetReportWatermark />
+      <div className="relative z-10">
+      <header className="break-inside-avoid">
+        <div className="flex flex-row flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[16pt] font-bold leading-tight" style={{ color: pdfInk }}>
+              Compliance assessment report
+            </h1>
+            <ul className="mt-4 list-none space-y-1 text-[10pt] leading-snug">
+              <li>
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Company:
+                </span>{" "}
+                <span>{meta.companyName}</span>
+              </li>
+              <li>
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Framework:
+                </span>{" "}
+                <span>
+                  {meta.frameworkName} ({meta.frameworkCode})
+                </span>
+              </li>
+              <li className="flex flex-wrap items-baseline gap-x-1">
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Year:
+                </span>
+                <span>{meta.complianceYear}</span>
+                <span className={`${labelCls} ps-8`} style={{ color: pdfInk }}>
+                  Type:
+                </span>
+                <span>{meta.type}</span>
+              </li>
+              <li>
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Status:
+                </span>{" "}
+                <span>{meta.assessmentStatus.replace(/_/g, " ")}</span>
+              </li>
+              <li>
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Generated:
+                </span>{" "}
+                <span>{formatReportTimestamp(meta.generatedAt)}</span>
+              </li>
+              {meta.dueDate ? (
+                <li>
+                  <span className={labelCls} style={{ color: pdfInk }}>
+                    Due:
+                  </span>{" "}
+                  <span>{formatReportDateOnly(meta.dueDate)}</span>
+                </li>
+              ) : null}
+              <li>
+                <span className={labelCls} style={{ color: pdfInk }}>
+                  Assessment ID:
+                </span>{" "}
+                <span className="break-all">{meta.assessmentId}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            className="shrink-0 print:break-inside-avoid max-sm:w-full max-sm:flex max-sm:justify-end"
+            aria-label={`Completion score ${completionScorePct} percent`}
+          >
+            <div
+              className="border-[3px] border-double px-4 py-2.5 text-center shadow-sm print:shadow-none"
+              style={{ borderColor: pdfInk }}
+            >
+              <div className="text-[8pt] font-bold uppercase tracking-wide leading-tight" style={{ color: pdfInk }}>
+                Completion score
+              </div>
+              <div className="mt-1 text-[21pt] font-bold tabular-nums leading-none tracking-tight" style={{ color: pdfInk }}>
+                {completionScorePct}%
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <hr className="my-6 border-0 border-t" style={{ borderColor: pdfLine }} />
@@ -193,20 +258,7 @@ export function AssessmentComplianceReport({ data }: { data: AssessmentReportDat
           ))}
         </div>
       </section>
-
-      {certificate != null ? (
-        <section className="mt-8">
-          <h2 className="text-[12pt] font-bold" style={{ color: pdfInk }}>
-            Certificate data
-          </h2>
-          <pre
-            className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap wrap-break-word rounded border p-3 text-[7pt] leading-snug font-mono"
-            style={{ borderColor: pdfLine, color: "#3c3c3c", backgroundColor: "#fafafa" }}
-          >
-            {typeof certificate === "string" ? certificate : JSON.stringify(certificate, null, 2)}
-          </pre>
-        </section>
-      ) : null}
+      </div>
     </article>
   )
 }

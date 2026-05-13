@@ -5,6 +5,7 @@ import Link from "next/link"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { AssessmentComplianceReportSkeleton } from "@/components/screens/assessment-compliance-report-skeleton"
 import { AssessmentComplianceReport } from "@/components/screens/AssessmentComplianceReport"
 import { fetchAssessmentReportData } from "@/lib/actions/frameworks"
 import type { AssessmentReportData } from "@/lib/types/assessment-report-data"
@@ -45,7 +46,7 @@ export default function AssessmentReportPage({
     }
   }, [id])
 
-  function handleDownloadPdf() {
+  async function handleDownloadPdf() {
     if (!data) {
       toast.error("Report is not ready to export.")
       return
@@ -53,7 +54,7 @@ export default function AssessmentReportPage({
     setPdfLoading(true)
     try {
       const safeName = `assessment-report-${data.meta.frameworkCode.replace(/[^a-zA-Z0-9-_]/g, "_")}-${data.meta.complianceYear}`
-      downloadAssessmentComplianceReportPdf(data, `${safeName}.pdf`)
+      await downloadAssessmentComplianceReportPdf(data, `${safeName}.pdf`)
       toast.success("PDF downloaded.")
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not generate PDF."
@@ -92,12 +93,9 @@ export default function AssessmentReportPage({
         </div>
 
         {loading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-              Loading report…
-            </CardContent>
-          </Card>
+          <div className="mx-auto w-full pb-8" aria-busy="true">
+            <AssessmentComplianceReportSkeleton />
+          </div>
         ) : null}
 
         {!loading && error ? (

@@ -15,7 +15,7 @@ import type { CompanyInvitationsResponse } from "../types/company-invitations"
 export async function fetchUserRoles(): Promise<UserRolesResponse> {
   const headers = await getAuthHeaders()
   const response = await api.get<UserRolesResponse>(
-    API_ROUTES.USER_ROLES.ROLES,
+    API_ROUTES.USER_ROLES.LIST,
     { headers }
   )
   return response.data

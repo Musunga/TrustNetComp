@@ -54,6 +54,13 @@ export function isAssessmentWorkflowCompleted(status: string | null | undefined)
   )
 }
 
+/** Company-admin dashboard: offer assisted enrollment only before review / approval / completion. */
+export function isAssistedAssessmentEligibleForCompanyAdmin(status: string | null | undefined): boolean {
+  if (status == null || typeof status !== "string" || status.trim() === "") return false
+  const u = status.toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_")
+  return u === "NOT_STARTED" || u === "IN_PROGRESS"
+}
+
 export function isCompliantComplianceStatusCode(statusCode: string): boolean {
   const c = (statusCode ?? "").toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_")
   return c === "COMPLIANT" || c === "FULLY_COMPLIANT"
@@ -206,6 +213,27 @@ export function membershipHasRole(
 ): boolean {
   const expected = normalizeRoleCode(roleCode)
   return membership?.roles?.some((role) => normalizeRoleCode(role.code) === expected) ?? false
+}
+
+export function membershipForCompany(
+  authSession: AuthSessionI | null | undefined,
+  companyId: string | null | undefined
+): MembershipI | null {
+  if (!authSession || typeof companyId !== "string" || !companyId.trim()) return null
+  const active = authSession.activeMembership
+  if (active?.company?.id === companyId) return active
+  return authSession.memberships?.find((m) => m.company?.id === companyId) ?? null
+}
+
+export function isCompanyAdminForCompany(
+  authSession: AuthSessionI | null | undefined,
+  companyId: string | null | undefined
+): boolean {
+  return membershipHasRole(membershipForCompany(authSession, companyId), "COMPANY_ADMIN")
+}
+
+export function filterRolesForCompanyAdminInvite<T extends { code: string }>(roles: readonly T[]): T[] {
+  return roles.filter((r) => normalizeRoleCode(r.code).startsWith("COMPANY"))
 }
 
 export function authSessionHasRole(

@@ -40,3 +40,5 @@ export const AUTH_SESSION_STORAGE_KEY = "auth-session";
 /** localStorage key for the currently selected company (full CompanyI). */
 export const ACTIVE_COMPANY_STORAGE_KEY = "active-company";
 
+/** Default IANA timezone for users completing invitation acceptance (Zambia). */
+export const DEFAULT_INVITATION_ACCEPT_TIMEZONE = "Africa/Lusaka";

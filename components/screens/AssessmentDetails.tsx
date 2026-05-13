@@ -67,6 +67,7 @@ import {
   getAssessmentControlsCompletionCounts,
   isCompliantComplianceStatusCode,
   isAssessmentWorkflowCompleted,
+  statusVariant,
 } from "@/lib/constants/functions"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
 import { ViewDefinition, ViewOrchestrator } from "../shared/Pageview"
@@ -459,6 +460,10 @@ export default function AssessmentDetails({ id }: { id: string }) {
 
   const showViewCertificate = isAssessmentWorkflowCompleted(displayStatus)
   const certificateIdForLink = assessment.certificateId?.trim() || ""
+  const assessmentStatusBadgeVariantRaw = statusVariant(displayStatus)
+  const assessmentStatusBadgeVariant =
+    assessmentStatusBadgeVariantRaw === "bg-gray-300" ? "secondary" : assessmentStatusBadgeVariantRaw
+
   const views: ViewDefinition<PageViews>[] = [
     {
       id: "controlFunctions",
@@ -813,15 +818,12 @@ export default function AssessmentDetails({ id }: { id: string }) {
                 className="flex w-full cursor-pointer items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
               >
                 <Shield className="h-4 w-4 shrink-0 text-primary" />
-                <CardTitle className="text-base font-semibold">
+                <CardTitle className="text-base font-semibold mr-8">
                   {assessment.framework.name}
-                  <span className="ml-1 font-normal text-muted-foreground">
+                  {/* <span className="ml-1 font-normal text-muted-foreground">
                     ({assessment.framework.code})
-                  </span>
+                  </span> */}
                 </CardTitle>
-                <Badge variant={complianceStatusVariant(displayStatus)} className="text-xs">
-                  {displayStatus.replace(/_/g, " ")}
-                </Badge>
                 <span className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -863,6 +865,9 @@ export default function AssessmentDetails({ id }: { id: string }) {
               ({assessmentCompletedControls}/{totalControls})
             </span>
           ) : null}
+          <Badge variant={assessmentStatusBadgeVariant} className="ml-3 shrink-0 text-xs font-medium sm:ml-4">
+            {displayStatus.replace(/_/g, " ")}
+          </Badge>
         </h2>
         <ScrollArea className="h-[calc(100vh-20rem)] rounded-lg border bg-muted/20">
           <ViewOrchestrator

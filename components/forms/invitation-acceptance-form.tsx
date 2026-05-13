@@ -7,31 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { acceptInvitation } from "@/lib/actions/invitations"
-
-const TIMEZONES = [
-  "Africa/Lusaka",
-  "Africa/Johannesburg",
-  "Africa/Nairobi",
-  "Africa/Lagos",
-  "America/New_York",
-  "America/Los_Angeles",
-  "America/Chicago",
-  "Europe/London",
-  "Europe/Paris",
-  "Asia/Dubai",
-  "Asia/Singapore",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-] as const
+import { DEFAULT_INVITATION_ACCEPT_TIMEZONE } from "@/lib/constants/variables"
 
 interface InvitationAcceptanceFormProps {
   invitationId: string
@@ -43,13 +21,12 @@ export default function InvitationAcceptanceForm({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    token:invitationId,
+    token: invitationId,
     firstName: "",
     lastName: "",
     password: "",
     phoneNumber: "",
     jobTitle: "",
-    timezone: "",
     bio: "",
   })
 
@@ -65,8 +42,9 @@ export default function InvitationAcceptanceForm({
     setIsLoading(true)
 
     try {
-      await acceptInvitation( {
+      await acceptInvitation({
         ...formData,
+        timezone: DEFAULT_INVITATION_ACCEPT_TIMEZONE,
       })
       toast.success("Invitation accepted", {
         description: "Your account has been created successfully.",
@@ -154,29 +132,7 @@ export default function InvitationAcceptanceForm({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Timezone</Label>
-            <Select
-              value={formData.timezone}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, timezone: value }))
-              }
-              required
-            >
-              <SelectTrigger id="timezone">
-                <SelectValue placeholder="Select timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIMEZONES.map((tz) => (
-                  <SelectItem key={tz} value={tz}>
-                    {tz.replace("_", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
+          <div className="mb-6 space-y-2">
             <Label htmlFor="bio">Bio</Label>
             <Textarea
               id="bio"
@@ -188,7 +144,7 @@ export default function InvitationAcceptanceForm({
             />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="mb-8">
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Accepting invitation..." : "Accept Invitation"}
           </Button>

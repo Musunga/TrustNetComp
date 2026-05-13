@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { useAtomValue } from "jotai"
-import { Calendar, Shield, ClipboardCheck, TrendingUp } from "lucide-react"
+import { Calendar, Shield, ClipboardCheck, TrendingUp, X } from "lucide-react"
 import { fetchCompanyAssessments } from "@/lib/actions/frameworks"
 import { requestAssistedAssessment } from "@/lib/actions/assisted-assessments"
 import type { Assessment } from "@/lib/types"
@@ -12,6 +12,7 @@ import { activeCompanyAtom } from "@/lib/store/auth"
 import { cn } from "@/lib/utils"
 import {
   formatDate,
+  isAssistedAssessmentEligibleForCompanyAdmin,
   parseProgress,
   resolveCompanyFrameworkEnrollmentId,
   statusVariant,
@@ -31,12 +32,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 
+const FRAMEWORKS_ASSESSMENT_NOTE_DISMISSED_KEY = "compliance_dashboard_frameworks_assessment_note.dismissed.v1"
+
 export default function RecentActivity() {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [loading, setLoading] = useState(true)
   const activeCompany = useAtomValue(activeCompanyAtom)
   const [assistedDialog, setAssistedDialog] = useState<Assessment | null>(null)
   const [assistedSubmitting, setAssistedSubmitting] = useState(false)
+  const [frameworksNoteDismissed, setFrameworksNoteDismissed] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(FRAMEWORKS_ASSESSMENT_NOTE_DISMISSED_KEY) === "1") {
+        setFrameworksNoteDismissed(true)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   function reloadAssessments() {
     if (!activeCompany?.id) return
@@ -55,6 +69,15 @@ export default function RecentActivity() {
       .catch(() => setAssessments([]))
       .finally(() => setLoading(false))
   }, [activeCompany?.id])
+
+  function dismissFrameworksNote() {
+    setFrameworksNoteDismissed(true)
+    try {
+      localStorage.setItem(FRAMEWORKS_ASSESSMENT_NOTE_DISMISSED_KEY, "1")
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function submitAssistedRequest() {
     if (!activeCompany?.id || !assistedDialog) return
@@ -119,14 +142,34 @@ export default function RecentActivity() {
               Your frameworks
             </CardTitle>
             <CardDescription className="mt-2">
-              Frameworks your company has chosen. Open one to work through controls internally, or start{" "}
+              Frameworks your company has chosen. Open one to work through controls; when an enrollment is not started or
+              in progress, you can start{" "}
               <span className="font-medium text-foreground">assisted assessment</span> for the whole framework.
             </CardDescription>
           </div>
-          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Assisted assessments</span> apply to the entire framework
-            enrollment (not individual tasks). You can still keep working inside the assessment on your side.
-          </div>
+          {!frameworksNoteDismissed ? (
+            <aside className="relative border-t border-border/50 pt-3 pr-9 text-[11px] leading-normal tracking-wide text-muted-foreground/85">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-1.5 size-7 text-muted-foreground hover:text-foreground"
+                onClick={dismissFrameworksNote}
+                aria-label="Dismiss note"
+              >
+                <X className="size-3.5" aria-hidden />
+              </Button>
+              <p className="italic">
+                <span className="not-italic text-muted-foreground">Note:</span>{" "}
+                Whether you progress the enrollment yourself in the dashboard or choose{" "}
+                <span className="font-medium text-muted-foreground not-italic">
+                  assisted assessment
+                </span>
+                , both are subject to official approval and may involve inspection and audit. If you choose assisted
+                assessment, our technical teams take it forward and physical inspection may be part of that process.
+              </p>
+            </aside>
+          ) : null}
         </CardHeader>
         <CardContent>
           {assessments.length === 0 ? (
@@ -142,6 +185,7 @@ export default function RecentActivity() {
               {assessments.map((assessment) => {
                 const progress = parseProgress(assessment.progress)
                 const variant = statusVariant(assessment.status)
+                const showAssistedButton = isAssistedAssessmentEligibleForCompanyAdmin(assessment.status)
                 return (
                   <li key={assessment.id} className="overflow-hidden rounded-lg border">
                     <div className="flex flex-col sm:flex-row sm:items-stretch">
@@ -184,19 +228,21 @@ export default function RecentActivity() {
                           </div>
                         </div>
                       </Link>
-                      <div className="flex items-center justify-center border-t bg-muted/20 p-3 sm:w-56 sm:shrink-0 sm:border-t-0 sm:border-l sm:bg-muted/30 sm:px-4">
-                        <Button
-                          type="button"
-                          variant="default"
-                          size="default"
-                          className="w-full gap-2 shadow-sm"
-                          disabled={!activeCompany?.id}
-                          onClick={() => setAssistedDialog(assessment)}
-                        >
-                          <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden />
-                          Assisted assessment
-                        </Button>
-                      </div>
+                      {showAssistedButton ? (
+                        <div className="flex items-center justify-center border-t bg-muted/20 p-3 sm:w-56 sm:shrink-0 sm:border-t-0 sm:border-l sm:bg-muted/30 sm:px-4">
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="default"
+                            className="w-full gap-2 shadow-sm"
+                            disabled={!activeCompany?.id}
+                            onClick={() => setAssistedDialog(assessment)}
+                          >
+                            <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden />
+                            Assisted assessment
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   </li>
                 )
@@ -216,18 +262,15 @@ export default function RecentActivity() {
                   This starts{" "}
                   <span className="font-medium text-foreground">framework-wide assisted assessment</span> for{" "}
                   <span className="font-medium text-foreground">{assistedDialog?.framework.name}</span> (
-                  {assistedDialog?.year}). It covers the enrollment as a whole, not individual controls, and TrustNet will
-                  follow up according to scheduling and agreements.
+                  {assistedDialog?.year}). It applies to the whole enrollment, not individual controls.
                 </p>
-                <p>
-                  You can still open the assessment anytime to work internally with your team — those actions stay
-                  available in parallel.
-                </p>
-                <p className="text-xs">
-                  This submission uses your company–framework enrollment id from this list (see API field{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">companyFrameworkId</code>
-                  ). If the enrollment id is returned separately on the assessment payload, that value is used;
-                  otherwise this row&apos;s id is sent.
+                <p className="text-foreground">
+                  <span className="font-semibold">From here, completing this assessment rests with TrustNet.</span> Our team
+                  will help you finish the enrollment, gathering evidence through{" "}
+                  <span className="font-medium">
+                    physical (on-site) engagement and remote communication
+                  </span>{" "}
+                  as appropriate.
                 </p>
               </div>
             </AlertDialogDescription>

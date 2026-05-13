@@ -29,10 +29,10 @@ export async function fetchAssistedAssessmentEngagementsPage(
 
 export async function requestAssistedAssessment(body: AssistedAssessmentRequestBody): Promise<void> {
   const headers = await getAuthHeaders()
-  try {
-    await api.post(API_ROUTES.ASSISTED_ASSESSMENTS.REQUEST, body, { headers })
-  } catch (e) {
-    const msg = getApiErrorMessage(e) ?? "Could not submit assisted assessment."
-    throw new Error(msg)
-  }
+  // try {
+    const response = await api.post(API_ROUTES.ASSISTED_ASSESSMENTS.REQUEST, body, { headers })
+  // } catch (e) {
+  //   const msg = getApiErrorMessage(e) ?? "Could not submit assisted assessment."
+  //   throw new Error(msg)
+  // }
 }

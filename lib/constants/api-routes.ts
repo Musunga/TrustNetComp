@@ -101,9 +101,9 @@ export const API_ROUTES = {
       `/api/compliance-progress/user/${userId}/company/${companyId}`,
   },
 
-  // User roles
+  // User roles (assignable roles for invitations; company admins see company-scoped subset in UI)
   USER_ROLES: {
-    ROLES: "/api/user-roles/roles",
+    LIST: "/api/user-roles",
   },
 
   CERTIFICATES: {
