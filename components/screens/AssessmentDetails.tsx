@@ -3,13 +3,12 @@
 import React, { useEffect, useState } from "react"
 import { assignControlProgress, submitAssessmentForReview } from "@/lib/actions/compliance-progress"
 import { fetchCompanyMembers } from "@/lib/actions/companies"
-import { fetchAssessmentDetails, fetchAssessmentSummary, patchComplianceProgress } from "@/lib/actions/frameworks"
+import { fetchAssessmentDetails, patchComplianceProgress } from "@/lib/actions/frameworks"
 import type {
   AssessmentDetail,
   AssessmentControl,
   AssessmentFunction,
 } from "@/lib/types/assessment-detail"
-import type { AssessmentSummary } from "@/lib/types/assessment-summary"
 import type { CompanyMember } from "@/lib/types/company-members"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -101,14 +100,8 @@ function isAssessmentStatusLikelyInReviewPipeline(status: string): boolean {
   )
 }
 
-function isAssessmentWorkComplete(
-  summary: AssessmentSummary | null,
-  completedControls: number,
-  totalControls: number
-): boolean {
-  if (summary != null && summary.statistics.totalTasks > 0 && summary.statistics.pendingTasks === 0) return true
-  if (totalControls > 0 && completedControls >= totalControls) return true
-  return false
+function isAssessmentWorkComplete(completedControls: number, totalControls: number): boolean {
+  return totalControls > 0 && completedControls >= totalControls
 }
 
 type AssignedToRaw = string | null | { id?: string; user?: { name?: string; firstName?: string; lastName?: string; email?: string } }
@@ -267,7 +260,6 @@ export type PageViews = "controlFunctions" | "functionDetail"
 export default function AssessmentDetails({ id }: { id: string }) {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentDetail | null>(null)
-  const [summary, setSummary] = useState<AssessmentSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sendForReviewLoading, setSendForReviewLoading] = useState(false)
@@ -292,14 +284,9 @@ export default function AssessmentDetails({ id }: { id: string }) {
   async function load() {
     setError(null)
     setLoading(true)
-    setSummary(null)
     try {
-      const [data, summaryData] = await Promise.all([
-        fetchAssessmentDetails(id),
-        fetchAssessmentSummary(id).catch(() => null),
-      ])
+      const data = await fetchAssessmentDetails(id)
       setAssessment(data)
-      setSummary(summaryData)
     } catch {
       setError("Failed to load assessment. Please try again.")
     } finally {
@@ -308,13 +295,13 @@ export default function AssessmentDetails({ id }: { id: string }) {
   }
 
   async function refetchAssessment() {
-    const [data, summaryData] = await Promise.all([
-      fetchAssessmentDetails(id).catch(() => null),
-      fetchAssessmentSummary(id).catch(() => null),
-    ])
-    if (data) setAssessment(data)
-    if (summaryData) setSummary(summaryData)
-    return data
+    try {
+      const data = await fetchAssessmentDetails(id)
+      setAssessment(data)
+      return data
+    } catch {
+      return null
+    }
   }
 
   async function handleSendForReview() {
@@ -458,26 +445,20 @@ export default function AssessmentDetails({ id }: { id: string }) {
     )
   }
 
-  const overallProgress = parseProgress(assessment.progress)
-  const displayStatus = summary?.assessmentStatus ?? assessment.status
-  const displayProgress =
-    summary != null
-      ? Math.min(100, Math.max(0, Math.round(summary.overallProgress)))
-      : overallProgress
-  const displayDueDate = summary?.dueDate ?? assessment.dueDate
-  const displayUpdatedAt = summary?.updatedAt ?? assessment.updatedAt
+  const displayProgress = parseProgress(assessment.progress)
+  const displayStatus = assessment.status
+  const displayDueDate = assessment.dueDate
+  const displayUpdatedAt = assessment.updatedAt
   const { completed: assessmentCompletedControls, total: totalControls } =
     getAssessmentControlsCompletionCounts(assessment.functions)
 
   const showSendForReview =
     !isAssessmentWorkflowCompleted(displayStatus) &&
     !isAssessmentStatusLikelyInReviewPipeline(displayStatus) &&
-    isAssessmentWorkComplete(summary, assessmentCompletedControls, totalControls)
+    isAssessmentWorkComplete(assessmentCompletedControls, totalControls)
 
   const showViewCertificate = isAssessmentWorkflowCompleted(displayStatus)
-  const certificateIdForLink =
-    assessment.certificateId?.trim() || assessment.framework.certificateId?.trim() || ""
-  console.log(certificateIdForLink)
+  const certificateIdForLink = assessment.certificateId?.trim() || ""
   const views: ViewDefinition<PageViews>[] = [
     {
       id: "controlFunctions",
@@ -844,7 +825,7 @@ export default function AssessmentDetails({ id }: { id: string }) {
                 <span className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    Year {summary?.year ?? assessment.year}
+                    Year {assessment.year}
                   </span>
                   {displayDueDate && <span>Due {formatDate(displayDueDate)}</span>}
                   <span>Updated {formatDate(displayUpdatedAt)}</span>
@@ -858,11 +839,6 @@ export default function AssessmentDetails({ id }: { id: string }) {
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="space-y-4 pt-0">
-              {summary?.companyName ? (
-                <p className="text-sm text-muted-foreground">
-                  Company <span className="font-medium text-foreground">{summary.companyName}</span>
-                </p>
-              ) : null}
               {assessment.framework.description && (
                 <CardDescription className="text-xs">{assessment.framework.description}</CardDescription>
               )}
@@ -873,31 +849,6 @@ export default function AssessmentDetails({ id }: { id: string }) {
                 </div>
                 <Progress value={displayProgress} className="h-2" />
               </div>
-              {summary ? (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground">Task overview</p>
-                  <div className="flex flex-col divide-y divide-border md:flex-row md:divide-y-0 md:divide-x md:items-center md:justify-between">
-                    <div className="flex-1 py-4 md:py-2 md:pr-6">
-                      <div className="text-sm text-muted-foreground">Total tasks</div>
-                      <div className="mt-1 text-2xl font-bold tabular-nums">
-                        {summary.statistics.totalTasks}
-                      </div>
-                    </div>
-                    <div className="flex-1 py-4 md:py-2 md:px-6">
-                      <div className="text-sm text-muted-foreground">Completed</div>
-                      <div className="mt-1 text-2xl font-bold tabular-nums">
-                        {summary.statistics.completedTasks}
-                      </div>
-                    </div>
-                    <div className="flex-1 py-4 md:py-2 md:pl-6">
-                      <div className="text-sm text-muted-foreground">Pending</div>
-                      <div className="mt-1 text-2xl font-bold tabular-nums">
-                        {summary.statistics.pendingTasks}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </CardContent>
           </CollapsibleContent>
         </Card>

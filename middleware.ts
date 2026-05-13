@@ -7,7 +7,44 @@ import {
   type SessionData,
 } from "@/lib/session-config"
 
+const ALLOWED_ORIGINS = [
+  'https://trustnetcomp.netlify.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  ...(process.env.EXTRA_ALLOWED_ORIGINS?.split(',') ?? []),
+]
+
+function getCorsHeaders(origin: string) {
+  const isAllowed = ALLOWED_ORIGINS.includes(origin)
+  return {
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    ...(isAllowed && { 'Access-Control-Allow-Origin': origin }),
+  }
+}
+
 export async function middleware(request: NextRequest) {
+  const origin = request.headers.get('origin') || ''
+
+  // Handle CORS preflight for API routes
+  if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api')) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: getCorsHeaders(origin),
+    })
+  }
+
+  // Attach CORS headers to all API responses
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    const response = NextResponse.next()
+    Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+    return response
+  }
+
+  // --- existing auth logic below, unchanged ---
+
   const seal = request.cookies.get(SESSION_COOKIE_NAME)?.value
   let isLoggedIn = false
   if (seal) {
@@ -42,15 +79,8 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// See "Matching Paths" below to learn more
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
-};
+}

@@ -2,7 +2,8 @@ import axios from "axios"
 import { ACCESS_TOKEN_COOKIE_NAME, BASE_URL } from "./constants/variables"
 import type { ApiValidationErrorBody } from "@/lib/types/response"
 
-const computedBaseURL = BASE_URL
+// Browser uses same-origin /api/* so Next rewrites can proxy — avoids CORS (API Allow-Origin ≠ localhost).
+const computedBaseURL = typeof window === "undefined" ? BASE_URL : ""
 
 export const api = axios.create({
   baseURL: computedBaseURL,

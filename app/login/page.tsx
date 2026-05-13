@@ -23,10 +23,10 @@ export default function LoginPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              &ldquo;This platform has streamlined our ISO 27001 certification process, making compliance management
-              intuitive and organized like a simple todo list.&rdquo;
+              &ldquo;This platform has streamlined our alignment with Zambia&rsquo;s Data Protection Act, making compliance
+              management intuitive and organized like a simple todo list.&rdquo;
             </p>
-            <footer className="text-sm">Sofia Davis, CTO</footer>
+            <footer className="text-sm">Daniel Sitali, CTO, Chuuma</footer>
           </blockquote>
         </div>
       </div>

@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useLayoutEffect, useState } from "react"
-import { Award, Download, ExternalLink, Shield } from "lucide-react"
-import { fetchCertificateByIdClient } from "@/lib/certificates-client"
+import { Award, Download, Shield } from "lucide-react"
+import { fetchCertificateById } from "@/lib/actions/certificates"
 import type { CertificateDetail } from "@/lib/types/certificate"
 import { formatCertificateOrdinalDate } from "@/lib/constants/functions"
 import { downloadCertificatePdf } from "@/lib/utils/certificate-pdf"
@@ -114,7 +114,7 @@ export default function CertificateDetailScreen({ id }: { id: string }) {
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
-    fetchCertificateByIdClient(id)
+    fetchCertificateById(id)
       .then(setCert)
       .catch((e: unknown) => {
         setCert(null)
@@ -135,12 +135,18 @@ export default function CertificateDetailScreen({ id }: { id: string }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="mx-auto aspect-297/210 w-full max-w-[920px] rounded-lg" />
-        <div className="flex flex-wrap gap-3">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-36" />
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <Skeleton className="h-36 w-full max-w-[920px] rounded-lg" />
         </div>
+        <Skeleton className="mx-auto aspect-297/210 w-full max-w-[920px] rounded-lg" />
       </div>
     )
   }
@@ -161,62 +167,56 @@ export default function CertificateDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold tracking-tight">Certificate</h2>
+              <Badge variant="secondary" className="uppercase">
+                {cert.status.replace(/_/g, " ")}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">{cert.frameworkName}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" className="gap-2" onClick={handleDownloadPdf}>
+              <Download className="h-4 w-4" aria-hidden />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="grid gap-3 py-4 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-muted-foreground">Issued</p>
+              <p className="font-medium">{formatCertificateOrdinalDate(cert.issuedAt)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Valid from</p>
+              <p className="font-medium">{formatCertificateOrdinalDate(cert.validFrom)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Certificate reference</p>
+              <p className="font-mono font-medium break-all">{cert.id}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Issuer email</p>
+              <p className="font-medium">{cert.issuedBy.email}</p>
+            </div>
+            {cert.reviewerNotes ? (
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground">Reviewer notes</p>
+                <p className="mt-1 rounded-md border bg-muted/30 p-3 text-foreground">{cert.reviewerNotes}</p>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="overflow-x-auto pb-2">
         <CertificateLandscapePreview cert={cert} />
       </div>
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">Certificate</h2>
-            <Badge variant="secondary" className="uppercase">
-              {cert.status.replace(/_/g, " ")}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">{cert.frameworkName}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" className="gap-2" onClick={handleDownloadPdf}>
-            <Download className="h-4 w-4" aria-hidden />
-            Download PDF
-          </Button>
-          {cert.artifactUrl ? (
-            <Button variant="outline" className="gap-2" asChild>
-              <a href={cert.artifactUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" aria-hidden />
-                Official artifact
-              </a>
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <Card>
-        <CardContent className="grid gap-3 py-4 text-sm sm:grid-cols-2">
-          <div>
-            <p className="text-muted-foreground">Issued</p>
-            <p className="font-medium">{formatCertificateOrdinalDate(cert.issuedAt)}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Valid from</p>
-            <p className="font-medium">{formatCertificateOrdinalDate(cert.validFrom)}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Certificate reference</p>
-            <p className="font-mono font-medium break-all">{cert.id}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Issuer email</p>
-            <p className="font-medium">{cert.issuedBy.email}</p>
-          </div>
-          {cert.reviewerNotes ? (
-            <div className="sm:col-span-2">
-              <p className="text-muted-foreground">Reviewer notes</p>
-              <p className="mt-1 rounded-md border bg-muted/30 p-3 text-foreground">{cert.reviewerNotes}</p>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
     </div>
   )
 }

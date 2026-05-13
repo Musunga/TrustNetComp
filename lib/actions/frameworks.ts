@@ -5,7 +5,6 @@ import { getAuthHeaders } from "../auth-headers"
 import { API_ROUTES } from "../constants/api-routes"
 import type { AssessmentDetail } from "../types/assessment-detail"
 import type { AssessmentReportData } from "../types/assessment-report-data"
-import type { AssessmentSummary } from "../types/assessment-summary"
 import type { ComplianceProgressPatchBody } from "../types/compliance-progress"
 import type {
   Assessment,
@@ -43,14 +42,6 @@ export const fetchAssessmentDetails = async (assessmentId: string): Promise<Asse
   })
   const normalized = normalizeAssessmentDetailResponse(response.data)
   return normalized ?? (response.data as AssessmentDetail)
-}
-
-export const fetchAssessmentSummary = async (assessmentId: string): Promise<AssessmentSummary> => {
-  const headers = await getAuthHeaders()
-  const response = await api.get<AssessmentSummary>(API_ROUTES.ASSESSMENTS.SUMMARY(assessmentId), {
-    headers,
-  })
-  return response.data
 }
 
 export async function fetchAssessmentReportData(assessmentId: string): Promise<AssessmentReportData> {
