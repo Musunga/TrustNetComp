@@ -17,11 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { CountrySelect } from "@/components/shared/CountrySelect"
+import { PhoneNumberField } from "@/components/shared/PhoneNumberField"
 import { login as loginAction, register as registerAction } from "@/lib/actions/auth"
 import { getApiErrorMessage } from "@/lib/api"
 import { authSessionFromLogin } from "@/lib/utils/auth-login-response"
 import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables"
 import { authSessionAtom } from "@/lib/store/auth"
+import type { RegisterRequest } from "@/lib/types/auth"
 
 export function AuthForm() {
   const router = useRouter()
@@ -38,11 +41,13 @@ export function AuthForm() {
     email: "",
     password: "",
     phoneNumber: "",
+    phoneDialCode: "+260",
     jobTitle: "",
     companyName: "",
     companySize: "",
     industry: "",
     companyPhoneNumber: "",
+    companyPhoneDialCode: "+260",
     companyEmail: "",
     companyCountry: "",
     companyCity: "",
@@ -86,10 +91,25 @@ export function AuthForm() {
     setError(null)
     setIsLoading(true)
     try {
-      const data = await registerAction({
-        ...values,
+      const payload: RegisterRequest = {
+        firstName: values.firstName,
+        lastName: values.lastName,
         name: `${values.firstName} ${values.lastName}`.trim(),
-      })
+        email: values.email,
+        password: values.password,
+        phoneNumber: values.phoneNumber ? `${values.phoneDialCode}${values.phoneNumber}` : "",
+        jobTitle: values.jobTitle,
+        companyName: values.companyName,
+        companySize: values.companySize,
+        industry: values.industry,
+        companyPhoneNumber: values.companyPhoneNumber
+          ? `${values.companyPhoneDialCode}${values.companyPhoneNumber}`
+          : "",
+        companyEmail: values.companyEmail,
+        companyCountry: values.companyCountry,
+        companyCity: values.companyCity,
+      }
+      const data = await registerAction(payload)
       if (data.token) {
         localStorage.setItem(ACCESS_TOKEN_COOKIE_NAME, data.token)
         const res = await fetch("/api/auth/set-session", {
@@ -175,6 +195,27 @@ export function AuthForm() {
         <p className="text-lg font-medium">{title}</p>
         {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
+    )
+  }
+
+  function FieldLabel({
+    htmlFor,
+    children,
+    required,
+  }: {
+    htmlFor: string
+    children: React.ReactNode
+    required?: boolean
+  }) {
+    return (
+      <Label htmlFor={htmlFor} className="flex items-center gap-1">
+        {children}
+        {required ? (
+          <span className="text-destructive" aria-hidden>*</span>
+        ) : (
+          <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+        )}
+      </Label>
     )
   }
 
@@ -283,6 +324,9 @@ export function AuthForm() {
                     className="h-2"
                     aria-label="Signup progress"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-destructive">*</span> Required field
+                  </p>
                 </div>
                 {error ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert" aria-live="polite">
@@ -294,11 +338,11 @@ export function AuthForm() {
                     <StepHeader title="What's your name?" subtitle="We’ll personalize your workspace." />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
+                        <FieldLabel htmlFor="firstName" required>First Name</FieldLabel>
                         <Input id="firstName" name="firstName" value={values.firstName} onChange={handleChange} autoComplete="off" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
+                        <FieldLabel htmlFor="lastName" required>Last Name</FieldLabel>
                         <Input id="lastName" name="lastName" value={values.lastName} onChange={handleChange} autoComplete="off" />
                       </div>
                     </div>
@@ -309,12 +353,18 @@ export function AuthForm() {
                     <StepHeader title="How can we reach you?" subtitle="Use your work email if possible." />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="email-reg">Email</Label>
+                        <FieldLabel htmlFor="email-reg" required>Email</FieldLabel>
                         <Input id="email-reg" name="email" type="email" value={values.email} onChange={handleChange} autoComplete="off" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input id="phoneNumber" name="phoneNumber" value={values.phoneNumber} onChange={handleChange} autoComplete="off" />
+                        <FieldLabel htmlFor="phoneNumber">Phone Number</FieldLabel>
+                        <PhoneNumberField
+                          id="phoneNumber"
+                          dialCode={values.phoneDialCode}
+                          onDialCodeChange={(code) => handleSelectChange("phoneDialCode", code)}
+                          number={values.phoneNumber}
+                          onNumberChange={(v) => setValues((prev) => ({ ...prev, phoneNumber: v }))}
+                        />
                       </div>
                     </div>
                   </div>
@@ -323,7 +373,7 @@ export function AuthForm() {
                   <div className="space-y-4">
                     <StepHeader title="Secure your account" subtitle="Create a strong password." />
                     <div className="space-y-2">
-                      <Label htmlFor="password-reg">Password</Label>
+                      <FieldLabel htmlFor="password-reg" required>Password</FieldLabel>
                       <div className="relative">
                         <Input
                           id="password-reg"
@@ -352,7 +402,7 @@ export function AuthForm() {
                   <div className="space-y-4">
                     <StepHeader title="Your role" />
                     <div className="space-y-2">
-                      <Label htmlFor="jobTitle">Job Title</Label>
+                      <FieldLabel htmlFor="jobTitle">Job Title</FieldLabel>
                       <Input id="jobTitle" name="jobTitle" value={values.jobTitle} onChange={handleChange} autoComplete="off" />
                     </div>
                   </div>
@@ -361,12 +411,12 @@ export function AuthForm() {
                   <div className="space-y-4">
                     <StepHeader title="Company basics" />
                     <div className="space-y-2">
-                      <Label htmlFor="companyName">Company Name</Label>
+                      <FieldLabel htmlFor="companyName" required>Company Name</FieldLabel>
                       <Input id="companyName" name="companyName" value={values.companyName} onChange={handleChange} autoComplete="off" />
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="companySize">Company Size</Label>
+                        <FieldLabel htmlFor="companySize">Company Size</FieldLabel>
                         <Select value={values.companySize} onValueChange={(value) => handleSelectChange("companySize", value)}>
                           <SelectTrigger id="companySize" className="w-full">
                             <SelectValue placeholder="Select company size" />
@@ -381,7 +431,7 @@ export function AuthForm() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="industry">Industry</Label>
+                        <FieldLabel htmlFor="industry">Industry</FieldLabel>
                         <Select value={values.industry} onValueChange={(value) => handleSelectChange("industry", value)}>
                           <SelectTrigger id="industry" className="w-full">
                             <SelectValue placeholder="Select industry" />
@@ -406,11 +456,17 @@ export function AuthForm() {
                     <StepHeader title="Company contact details" />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="companyPhoneNumber">Company Phone Number</Label>
-                        <Input id="companyPhoneNumber" name="companyPhoneNumber" value={values.companyPhoneNumber} onChange={handleChange} autoComplete="off" />
+                        <FieldLabel htmlFor="companyPhoneNumber">Company Phone Number</FieldLabel>
+                        <PhoneNumberField
+                          id="companyPhoneNumber"
+                          dialCode={values.companyPhoneDialCode}
+                          onDialCodeChange={(code) => handleSelectChange("companyPhoneDialCode", code)}
+                          number={values.companyPhoneNumber}
+                          onNumberChange={(v) => setValues((prev) => ({ ...prev, companyPhoneNumber: v }))}
+                        />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="companyEmail">Company Email</Label>
+                        <FieldLabel htmlFor="companyEmail">Company Email</FieldLabel>
                         <Input id="companyEmail" name="companyEmail" type="email" value={values.companyEmail} onChange={handleChange} autoComplete="off" />
                       </div>
                     </div>
@@ -418,26 +474,18 @@ export function AuthForm() {
                 )}
                 {step === 6 && (
                   <div className="space-y-4">
-                    <StepHeader title="Where are you located?" subtitle="City is optional." />
+                    <StepHeader title="Where are you located?" />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="companyCountry">Company Country</Label>
-                        <Select value={values.companyCountry} onValueChange={(value) => handleSelectChange("companyCountry", value)}>
-                          <SelectTrigger id="companyCountry" className="w-full">
-                            <SelectValue placeholder="Select country" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Zambia">Zambia</SelectItem>
-                            <SelectItem value="South Africa">South Africa</SelectItem>
-                            <SelectItem value="Kenya">Kenya</SelectItem>
-                            <SelectItem value="Nigeria">Nigeria</SelectItem>
-                            <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                            <SelectItem value="United States">United States</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FieldLabel htmlFor="companyCountry" required>Company Country</FieldLabel>
+                        <CountrySelect
+                          id="companyCountry"
+                          value={values.companyCountry}
+                          onChange={(name) => handleSelectChange("companyCountry", name)}
+                        />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="companyCity">Company City</Label>
+                        <FieldLabel htmlFor="companyCity">Company City</FieldLabel>
                         <Select value={values.companyCity} onValueChange={(value) => handleSelectChange("companyCity", value)}>
                           <SelectTrigger id="companyCity" className="w-full">
                             <SelectValue placeholder="Select city (optional)" />
@@ -458,12 +506,12 @@ export function AuthForm() {
                     <div className="text-sm grid gap-2">
                       <div><span className="text-muted-foreground">Name:</span> {values.firstName} {values.lastName}</div>
                       <div><span className="text-muted-foreground">Email:</span> {values.email}</div>
-                      <div><span className="text-muted-foreground">Phone:</span> {values.phoneNumber || "—"}</div>
+                      <div><span className="text-muted-foreground">Phone:</span> {values.phoneNumber ? `${values.phoneDialCode} ${values.phoneNumber}` : "—"}</div>
                       <div><span className="text-muted-foreground">Job Title:</span> {values.jobTitle || "—"}</div>
                       <div><span className="text-muted-foreground">Company:</span> {values.companyName}</div>
                       <div><span className="text-muted-foreground">Size:</span> {values.companySize || "—"}</div>
                       <div><span className="text-muted-foreground">Industry:</span> {values.industry || "—"}</div>
-                      <div><span className="text-muted-foreground">Company Phone:</span> {values.companyPhoneNumber || "—"}</div>
+                      <div><span className="text-muted-foreground">Company Phone:</span> {values.companyPhoneNumber ? `${values.companyPhoneDialCode} ${values.companyPhoneNumber}` : "—"}</div>
                       <div><span className="text-muted-foreground">Company Email:</span> {values.companyEmail || "—"}</div>
                       <div><span className="text-muted-foreground">Location:</span> {values.companyCity || "—"}, {values.companyCountry || "—"}</div>
                     </div>

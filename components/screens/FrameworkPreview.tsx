@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Shield, AlertCircle, RefreshCw, ClipboardList, Calendar, ChevronDown, ArrowLeft } from "lucide-react"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
 import { ViewDefinition, ViewOrchestrator } from "../shared/Pageview"
+import SelectFrameworkButton from "../shared/SelectFrameworkButton"
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -282,11 +283,11 @@ export default function FrameworkPreview({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       <Collapsible open={cardOpen} onOpenChange={setCardOpen}>
         <Card>
-          <CardHeader className="py-3">
+          <CardHeader className="flex flex-row items-center gap-2 py-3">
             <CollapsibleTrigger asChild>
               <button
                 type="button"
-                className="flex w-full cursor-pointer items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Shield className="h-4 w-4 shrink-0 text-primary" />
                 <CardTitle className="text-base font-semibold">
@@ -308,6 +309,7 @@ export default function FrameworkPreview({ id }: { id: string }) {
                 />
               </button>
             </CollapsibleTrigger>
+            <SelectFrameworkButton framework={{ code: framework.code, name: framework.name }} />
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="space-y-3 pt-0">

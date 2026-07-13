@@ -3,7 +3,7 @@ export const API_ROUTES = {
   // Authentication
   AUTH: {
     LOGIN: "/api/auth/login",
-    REGISTER: "/api/auth/register",
+    REGISTER: "/api/auth/signup",
     LOGOUT: "/api/auth/logout",
     FORGOT_PASSWORD: "/api/auth/forgot-password",
     RESET_PASSWORD: "/api/auth/reset-password",

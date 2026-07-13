@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useAtomValue } from "jotai"
 import { useEffect, useState } from "react"
 import { activeCompanyAtom } from "@/lib/store/auth"
@@ -37,11 +38,14 @@ export default function MemberBreakdown() {
 
   if (!data) {
     return (
-      <div className="flex-1 py-4 md:py-2 md:px-6">
+      <Link
+        href="/dashboard/team"
+        className="block flex-1 rounded-md py-4 md:py-2 md:px-6 hover:bg-accent/5"
+      >
         <div className="text-sm text-muted-foreground">Team Members</div>
         <div className="mt-1 text-2xl font-bold">—</div>
         <p className="text-xs text-muted-foreground">No data</p>
-      </div>
+      </Link>
     )
   }
 
@@ -56,10 +60,13 @@ export default function MemberBreakdown() {
     .join(" · ") || "—"
 
   return (
-    <div className="flex-1 py-4 md:py-2 md:px-6">
+    <Link
+      href="/dashboard/team"
+      className="block flex-1 rounded-md py-4 md:py-2 md:px-6 hover:bg-accent/5"
+    >
       <div className="text-sm text-muted-foreground">Team Members</div>
       <div className="mt-1 text-2xl font-bold">{stats.total}</div>
       <p className="text-xs text-muted-foreground">{breakdown}</p>
-    </div>
+    </Link>
   )
 }

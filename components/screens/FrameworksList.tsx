@@ -1,33 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { fetchAllFrameworks, selectFramework } from "@/lib/actions/frameworks"
-import { activeCompanyAtom } from "@/lib/store/auth"
+import { fetchAllFrameworks } from "@/lib/actions/frameworks"
 import { Framework } from "@/lib/types"
-import { useAtomValue } from "jotai"
 import { useState, useEffect } from "react"
-import { toast } from "sonner"
 import { Button } from "../ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card"
 import { Skeleton } from "../ui/skeleton"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog"
+import SelectFrameworkButton from "../shared/SelectFrameworkButton"
 import { Eye } from "lucide-react"
 
 const FrameworksList = () => {
-  const activeCompany = useAtomValue(activeCompanyAtom)
   const [frameworks, setFrameworks] = useState<Framework[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectingCode, setSelectingCode] = useState<string | null>(null)
-  const [confirmingFramework, setConfirmingFramework] = useState<Framework | null>(null)
 
   useEffect(() => {
     fetchAllFrameworks()
@@ -35,27 +20,6 @@ const FrameworksList = () => {
       .catch(() => setFrameworks([]))
       .finally(() => setLoading(false))
   }, [])
-
-  async function handleSelect(fw: Framework) {
-    if (!activeCompany?.id) return
-    setConfirmingFramework(null)
-    setSelectingCode(fw.code)
-    try {
-      await selectFramework({
-        companyId: activeCompany.id,
-        frameworkCode: fw.code,
-        year: new Date().getFullYear(),
-      })
-      toast.success("Framework selected", {
-        description: `${fw.name} has been added for ${new Date().getFullYear()}.`,
-      })
-      setTimeout(() => window.location.reload(), 1500)
-    } catch {
-      toast.error("Failed to select framework")
-    } finally {
-      setSelectingCode(null)
-    }
-  }
 
   if (loading) {
     return (
@@ -107,46 +71,12 @@ const FrameworksList = () => {
                     Preview
                   </Link>
                 </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  disabled={!activeCompany?.id || selectingCode !== null}
-                  onClick={() => setConfirmingFramework(fw)}
-                >
-                  {selectingCode === fw.code ? "Selecting…" : "Select"}
-                </Button>
+                <SelectFrameworkButton framework={fw} />
               </div>
             </div>
           ))
         )}
       </CardContent>
-      <AlertDialog
-        open={!!confirmingFramework}
-        onOpenChange={(open) => !open && setConfirmingFramework(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm selection</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to take the assessment you selected?
-              {confirmingFramework && (
-                <span className="mt-2 block font-medium text-foreground">
-                  {confirmingFramework.name}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => confirmingFramework && handleSelect(confirmingFramework)}
-              disabled={!confirmingFramework || selectingCode !== null}
-            >
-              {selectingCode === confirmingFramework?.code ? "Selecting…" : "Confirm"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   )
 }
