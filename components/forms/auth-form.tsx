@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CountrySelect } from "@/components/shared/CountrySelect"
+import { JobTitleSelect } from "@/components/shared/JobTitleSelect"
 import { PhoneNumberField } from "@/components/shared/PhoneNumberField"
 import { login as loginAction, register as registerAction } from "@/lib/actions/auth"
 import { getApiErrorMessage } from "@/lib/api"
@@ -26,12 +27,14 @@ import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/constants/variables"
 import { authSessionAtom } from "@/lib/store/auth"
 import type { RegisterRequest } from "@/lib/types/auth"
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function AuthForm() {
   const router = useRouter()
   const setAuthSession = useSetAtom(authSessionAtom)
   const [isLoading, setIsLoading] = React.useState(false)
   const [step, setStep] = React.useState(0)
-  const totalSteps = 7
+  const totalSteps = 5
   const [showPassword, setShowPassword] = React.useState(false)
   const [showLoginPassword, setShowLoginPassword] = React.useState(false)
   const [loginError, setLoginError] = React.useState<string | null>(null)
@@ -78,8 +81,8 @@ export function AuthForm() {
         }
       }
       router.push("/dashboard")
-    } catch (_err) {
-      setLoginError("Invalid email or password. Please try again.")
+    } catch (err) {
+      setLoginError(getApiErrorMessage(err) ?? "Invalid email or password. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -153,26 +156,24 @@ export function AuthForm() {
         setError("Please enter your first and last name.")
         return false
       }
-    }
-    if (step === 1) {
-      if (!values.email) {
+      if (!EMAIL_REGEX.test(values.email)) {
         setError("Please enter a valid email address.")
         return false
       }
     }
-    if (step === 2) {
+    if (step === 1) {
       if (!values.password) {
         setError("Please create a password.")
         return false
       }
     }
-    if (step === 4) {
+    if (step === 2) {
       if (!values.companyName) {
         setError("Please enter your company name.")
         return false
       }
     }
-    if (step === 6 && !values.companyCountry) {
+    if (step === 3 && !values.companyCountry) {
       setError("Please select your company country.")
       return false
     }
@@ -335,7 +336,7 @@ export function AuthForm() {
                 ) : null}
                 {step === 0 && (
                   <div className="space-y-4">
-                    <StepHeader title="What's your name?" subtitle="We’ll personalize your workspace." />
+                    <StepHeader title="About you" subtitle="We’ll personalize your workspace and keep you in the loop." />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel htmlFor="firstName" required>First Name</FieldLabel>
@@ -345,13 +346,6 @@ export function AuthForm() {
                         <FieldLabel htmlFor="lastName" required>Last Name</FieldLabel>
                         <Input id="lastName" name="lastName" value={values.lastName} onChange={handleChange} autoComplete="off" />
                       </div>
-                    </div>
-                  </div>
-                )}
-                {step === 1 && (
-                  <div className="space-y-4">
-                    <StepHeader title="How can we reach you?" subtitle="Use your work email if possible." />
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel htmlFor="email-reg" required>Email</FieldLabel>
                         <Input id="email-reg" name="email" type="email" value={values.email} onChange={handleChange} autoComplete="off" />
@@ -369,7 +363,7 @@ export function AuthForm() {
                     </div>
                   </div>
                 )}
-                {step === 2 && (
+                {step === 1 && (
                   <div className="space-y-4">
                     <StepHeader title="Secure your account" subtitle="Create a strong password." />
                     <div className="space-y-2">
@@ -398,18 +392,17 @@ export function AuthForm() {
                     </div>
                   </div>
                 )}
-                {step === 3 && (
+                {step === 2 && (
                   <div className="space-y-4">
-                    <StepHeader title="Your role" />
+                    <StepHeader title="Your role & company" subtitle="Tell us about your company." />
                     <div className="space-y-2">
                       <FieldLabel htmlFor="jobTitle">Job Title</FieldLabel>
-                      <Input id="jobTitle" name="jobTitle" value={values.jobTitle} onChange={handleChange} autoComplete="off" />
+                      <JobTitleSelect
+                        id="jobTitle"
+                        value={values.jobTitle}
+                        onChange={(title) => handleSelectChange("jobTitle", title)}
+                      />
                     </div>
-                  </div>
-                )}
-                {step === 4 && (
-                  <div className="space-y-4">
-                    <StepHeader title="Company basics" />
                     <div className="space-y-2">
                       <FieldLabel htmlFor="companyName" required>Company Name</FieldLabel>
                       <Input id="companyName" name="companyName" value={values.companyName} onChange={handleChange} autoComplete="off" />
@@ -451,9 +444,9 @@ export function AuthForm() {
                     </div>
                   </div>
                 )}
-                {step === 5 && (
+                {step === 3 && (
                   <div className="space-y-4">
-                    <StepHeader title="Company contact details" />
+                    <StepHeader title="Company contact & location" subtitle="How can people reach your company?" />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel htmlFor="companyPhoneNumber">Company Phone Number</FieldLabel>
@@ -469,13 +462,6 @@ export function AuthForm() {
                         <FieldLabel htmlFor="companyEmail">Company Email</FieldLabel>
                         <Input id="companyEmail" name="companyEmail" type="email" value={values.companyEmail} onChange={handleChange} autoComplete="off" />
                       </div>
-                    </div>
-                  </div>
-                )}
-                {step === 6 && (
-                  <div className="space-y-4">
-                    <StepHeader title="Where are you located?" />
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel htmlFor="companyCountry" required>Company Country</FieldLabel>
                         <CountrySelect
@@ -503,6 +489,11 @@ export function AuthForm() {
                         </Select>
                       </div>
                     </div>
+                  </div>
+                )}
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <StepHeader title="Review" subtitle="Please confirm your details before creating your account." />
                     <div className="text-sm grid gap-2">
                       <div><span className="text-muted-foreground">Name:</span> {values.firstName} {values.lastName}</div>
                       <div><span className="text-muted-foreground">Email:</span> {values.email}</div>

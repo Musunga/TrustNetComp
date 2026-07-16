@@ -1,6 +1,7 @@
 "use server"
 
-import api from "../api"
+import { unstable_rethrow } from "next/navigation"
+import api, { getApiErrorMessage } from "../api"
 import { getSession } from "../session"
 import { API_ROUTES } from "../constants/api-routes"
 import {
@@ -28,7 +29,8 @@ export const login = async (
     }
     return data
   } catch (error) {
-    return Promise.reject(error)
+    unstable_rethrow(error)
+    throw new Error(getApiErrorMessage(error) ?? "Invalid email or password. Please try again.")
   }
 }
 
@@ -43,7 +45,10 @@ export const logout = async () => {
 
 export const register = async (payload: RegisterRequest) => {
   try {
-    const response = await api.post<LoginResponseI>(API_ROUTES.AUTH.REGISTER, payload)
+    console.log("Register payload:", payload) // Log the payload for debugging
+    const url = API_ROUTES.AUTH.REGISTER
+     console.log("Register url==========>", url) 
+    const response = await api.post<LoginResponseI>(url, payload)
     const data: LoginResponseI = response.data
     const accessToken = data.token
     if (accessToken) {
@@ -51,8 +56,11 @@ export const register = async (payload: RegisterRequest) => {
       session.accessToken = accessToken
       await session.save()
     }
+   // Log the entire response for debugging
+    console.log("Register response data:", response) // Log the response data for debugging
     return data
   } catch (error) {
-    return Promise.reject(error)
+    unstable_rethrow(error)
+    throw new Error(getApiErrorMessage(error) ?? "Could not create account. Please try again.")
   }
 }

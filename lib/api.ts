@@ -106,7 +106,7 @@ export function getApiErrorMessage(error: unknown): string | null {
     return status === 404 ? "Not found (404)." : `Request failed (${status}).`
   }
 
-  if (axios.isAxiosError(error) && typeof error.message === "string" && error.message) {
+  if (error instanceof Error && error.message) {
     return error.message
   }
 
