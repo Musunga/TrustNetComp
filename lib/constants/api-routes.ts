@@ -10,6 +10,12 @@ export const API_ROUTES = {
     REFRESH_TOKEN: "/api/auth/refresh",
   },
 
+  // Locations
+  LOCATIONS: {
+    COUNTRIES: "/api/locations/countries",
+    CITIES: (countryId: number | string) => `/api/locations/countries/${countryId}/cities`,
+  },
+
   // Users
   USERS: {
     LIST: "/api/users",

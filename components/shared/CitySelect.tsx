@@ -6,33 +6,45 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { useCountries } from "@/hooks/use-countries"
+import { useCities } from "@/hooks/use-cities"
 import { cn } from "@/lib/utils"
-import type { Country } from "@/lib/types/country"
 
-export function CountrySelect({
+export function CitySelect({
   id,
+  countryId,
   value,
   onChange,
-  placeholder = "Select country",
+  placeholder = "Select city (optional)",
 }: {
   id?: string
+  countryId: number | null
   value: string
-  onChange: (country: Country) => void
+  onChange: (city: string) => void
   placeholder?: string
 }) {
-  const { countries, loading } = useCountries()
+  const { cities, loading } = useCities(countryId)
   const [open, setOpen] = React.useState(false)
-  const selected = countries.find((c) => c.name === value)
+  const [query, setQuery] = React.useState("")
+
+  const trimmedQuery = query.trim()
+  const hasExactMatch = cities.some(
+    (c) => c.name.toLowerCase() === trimmedQuery.toLowerCase()
+  )
+  const disabled = loading || countryId == null
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setQuery("")
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -41,17 +53,18 @@ export function CountrySelect({
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between font-normal"
-          disabled={loading}
+          disabled={disabled}
         >
           <span className="flex min-w-0 items-center gap-2 truncate">
-            {selected ? (
-              <>
-                <span aria-hidden>{selected.emoji}</span>
-                <span className="truncate">{selected.name}</span>
-              </>
+            {value ? (
+              <span className="truncate">{value}</span>
             ) : (
               <span className="text-muted-foreground">
-                {loading ? "Loading countries..." : placeholder}
+                {loading
+                  ? "Loading cities..."
+                  : countryId == null
+                    ? "Select a country first"
+                    : placeholder}
               </span>
             )}
           </span>
@@ -59,23 +72,38 @@ export function CountrySelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search country..." />
+        <Command shouldFilter>
+          <CommandInput
+            placeholder="Search city..."
+            value={query}
+            onValueChange={setQuery}
+          />
           <CommandList>
-            <CommandEmpty>No country found.</CommandEmpty>
+            {trimmedQuery && !hasExactMatch && (
+              <CommandGroup>
+                <CommandItem
+                  value={`__custom__${trimmedQuery}`}
+                  onSelect={() => {
+                    onChange(trimmedQuery)
+                    setOpen(false)
+                    setQuery("")
+                  }}
+                >
+                  <span className="flex-1 truncate">Use &ldquo;{trimmedQuery}&rdquo;</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
             <CommandGroup>
-              {countries.map((c) => (
+              {cities.map((c) => (
                 <CommandItem
                   key={c.id}
                   value={c.name}
                   onSelect={() => {
-                    onChange(c)
+                    onChange(c.name)
                     setOpen(false)
+                    setQuery("")
                   }}
                 >
-                  <span className="mr-1" aria-hidden>
-                    {c.emoji}
-                  </span>
                   <span className="flex-1 truncate">{c.name}</span>
                   <Check
                     className={cn(

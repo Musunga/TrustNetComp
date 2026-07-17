@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import api from "@/lib/api"
+import { API_ROUTES } from "@/lib/constants/api-routes"
 import type { Country } from "@/lib/types/country"
 
 let cache: Country[] | null = null
@@ -15,9 +17,9 @@ export function useCountries() {
       setLoading(false)
       return
     }
-    fetch("/countries.json")
-      .then((res) => res.json())
-      .then((data: Country[]) => {
+    api
+      .get<Country[]>(API_ROUTES.LOCATIONS.COUNTRIES)
+      .then(({ data }) => {
         cache = data
         setCountries(data)
       })

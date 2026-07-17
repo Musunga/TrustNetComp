@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CountrySelect } from "@/components/shared/CountrySelect"
+import { CitySelect } from "@/components/shared/CitySelect"
 import { JobTitleSelect } from "@/components/shared/JobTitleSelect"
 import { PhoneNumberField } from "@/components/shared/PhoneNumberField"
 import { login as loginAction, register as registerAction } from "@/lib/actions/auth"
@@ -53,6 +54,7 @@ export function AuthForm() {
     companyPhoneDialCode: "+260",
     companyEmail: "",
     companyCountry: "",
+    companyCountryId: null as number | null,
     companyCity: "",
   })
   const [error, setError] = React.useState<string | null>(null)
@@ -467,26 +469,24 @@ export function AuthForm() {
                         <CountrySelect
                           id="companyCountry"
                           value={values.companyCountry}
-                          onChange={(name) => handleSelectChange("companyCountry", name)}
+                          onChange={(country) =>
+                            setValues((prev) => ({
+                              ...prev,
+                              companyCountry: country.name,
+                              companyCountryId: country.id,
+                              companyCity: "",
+                            }))
+                          }
                         />
                       </div>
                       <div className="space-y-2">
                         <FieldLabel htmlFor="companyCity">Company City</FieldLabel>
-                        <Select value={values.companyCity} onValueChange={(value) => handleSelectChange("companyCity", value)}>
-                          <SelectTrigger id="companyCity" className="w-full">
-                            <SelectValue placeholder="Select city (optional)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Lusaka">Lusaka</SelectItem>
-                            <SelectItem value="Ndola">Ndola</SelectItem>
-                            <SelectItem value="Kitwe">Kitwe</SelectItem>
-                            <SelectItem value="Johannesburg">Johannesburg</SelectItem>
-                            <SelectItem value="Nairobi">Nairobi</SelectItem>
-                            <SelectItem value="Lagos">Lagos</SelectItem>
-                            <SelectItem value="London">London</SelectItem>
-                            <SelectItem value="New York">New York</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <CitySelect
+                          id="companyCity"
+                          countryId={values.companyCountryId}
+                          value={values.companyCity}
+                          onChange={(city) => handleSelectChange("companyCity", city)}
+                        />
                       </div>
                     </div>
                   </div>

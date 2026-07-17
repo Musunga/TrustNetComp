@@ -38,6 +38,7 @@ import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { BrandLogo } from "@/components/brand-logo"
 import { HexagonPatternLeft } from "@/components/shared/HexagonPatternLeft"
+import { AiAssistantChat } from "@/components/shared/AiAssistantChat"
 import { activeCompanyAtom, authSessionAtom } from "@/lib/store/auth"
 import { authSessionIsTechnicalAdmin, formatCreditBalance, formatZmwAmount, getWalletCreditBalance } from "@/lib/constants/functions"
 import { fetchCompanyWallet } from "@/lib/actions/wallet"
@@ -318,6 +319,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <main className="relative z-0 min-w-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 md:py-8 lg:px-8">
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
+
+      <AiAssistantChat />
 
       <Popover>
         <PopoverTrigger asChild>

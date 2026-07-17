@@ -1,6 +1,18 @@
 import axios from "axios"
 import { ACCESS_TOKEN_COOKIE_NAME, BASE_URL } from "./constants/variables"
+import { API_ROUTES } from "./constants/api-routes"
 import type { ApiValidationErrorBody } from "@/lib/types/response"
+
+// Routes that are called without an existing session — a 401 here means "wrong
+// credentials" / "invalid link", not "your session expired", so they must be
+// excluded from the session-expired redirect below.
+const UNAUTHENTICATED_ROUTES: string[] = [
+  API_ROUTES.AUTH.LOGIN,
+  API_ROUTES.AUTH.REGISTER,
+  API_ROUTES.AUTH.FORGOT_PASSWORD,
+  API_ROUTES.AUTH.RESET_PASSWORD,
+  API_ROUTES.INVITATIONS.ACCEPT,
+]
 
 // Browser uses same-origin /api/* so Next rewrites can proxy — avoids CORS (API Allow-Origin ≠ localhost).
 const computedBaseURL = typeof window === "undefined" ? BASE_URL : ""
@@ -35,6 +47,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status !== 401) return Promise.reject(error);
+
+    const requestUrl: string = error.config?.url ?? ""
+    if (UNAUTHENTICATED_ROUTES.some((route) => requestUrl.includes(route))) {
+      return Promise.reject(error);
+    }
 
     if (typeof window !== "undefined") {
       localStorage.removeItem(ACCESS_TOKEN_COOKIE_NAME)
