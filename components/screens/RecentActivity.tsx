@@ -2,44 +2,28 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { toast } from "sonner"
 import { useAtomValue } from "jotai"
-import { Calendar, Shield, ClipboardCheck, TrendingUp, X } from "lucide-react"
-import { fetchCompanyAssessments } from "@/lib/actions/frameworks"
-import { requestAssistedAssessment } from "@/lib/actions/assisted-assessments"
-import type { Assessment } from "@/lib/types"
+import { AlertCircle, AlertTriangle, Calendar, RefreshCw, Shield, TrendingUp, X } from "lucide-react"
+import { useCompanyAssessments } from "@/hooks/use-company-assessments"
 import { activeCompanyAtom } from "@/lib/store/auth"
 import { cn } from "@/lib/utils"
-import {
-  formatDate,
-  isAssistedAssessmentEligibleForCompanyAdmin,
-  parseProgress,
-  resolveCompanyFrameworkEnrollmentId,
-  statusVariant,
-} from "@/lib/constants/functions"
+import { formatDate, parseProgress, statusVariant } from "@/lib/constants/functions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const FRAMEWORKS_ASSESSMENT_NOTE_DISMISSED_KEY = "compliance_dashboard_frameworks_assessment_note.dismissed.v1"
+const STALE_AFTER_DAYS = 30
+
+function daysSince(date: string | Date): number {
+  return Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000)
+}
 
 export default function RecentActivity() {
-  const [assessments, setAssessments] = useState<Assessment[]>([])
-  const [loading, setLoading] = useState(true)
   const activeCompany = useAtomValue(activeCompanyAtom)
-  const [assistedDialog, setAssistedDialog] = useState<Assessment | null>(null)
-  const [assistedSubmitting, setAssistedSubmitting] = useState(false)
+  const { data: assessments, isLoading: loading, error, mutate } = useCompanyAssessments(activeCompany?.id)
   const [frameworksNoteDismissed, setFrameworksNoteDismissed] = useState(false)
 
   useEffect(() => {
@@ -52,24 +36,6 @@ export default function RecentActivity() {
     }
   }, [])
 
-  function reloadAssessments() {
-    if (!activeCompany?.id) return
-    fetchCompanyAssessments(activeCompany.id).then(setAssessments).catch(() => setAssessments([]))
-  }
-
-  useEffect(() => {
-    if (!activeCompany?.id) {
-      setAssessments([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetchCompanyAssessments(activeCompany.id)
-      .then((data) => setAssessments(data))
-      .catch(() => setAssessments([]))
-      .finally(() => setLoading(false))
-  }, [activeCompany?.id])
-
   function dismissFrameworksNote() {
     setFrameworksNoteDismissed(true)
     try {
@@ -79,30 +45,9 @@ export default function RecentActivity() {
     }
   }
 
-  async function submitAssistedRequest() {
-    if (!activeCompany?.id || !assistedDialog) return
-    setAssistedSubmitting(true)
-    try {
-      await requestAssistedAssessment({
-        companyId: activeCompany.id,
-        companyFrameworkId: resolveCompanyFrameworkEnrollmentId(assistedDialog),
-      })
-      toast.success("Assisted assessment submitted", {
-        description: `We recorded assisted assessment for ${assistedDialog.framework.name}.`,
-      })
-      setAssistedDialog(null)
-      reloadAssessments()
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Something went wrong."
-      toast.error("Submission failed", { description: message })
-    } finally {
-      setAssistedSubmitting(false)
-    }
-  }
-
   if (loading) {
     return (
-      <Card className="col-span-4">
+      <Card className="lg:col-span-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-muted-foreground" />
@@ -133,156 +78,130 @@ export default function RecentActivity() {
   }
 
   return (
-    <>
-      <Card className="col-span-4">
-        <CardHeader className="space-y-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-              Your frameworks
-            </CardTitle>
-            <CardDescription className="mt-2">
-              Frameworks your company has chosen. Open one to work through controls; when an enrollment is not started or
-              in progress, you can start{" "}
-              <span className="font-medium text-foreground">assisted assessment</span> for the whole framework.
-            </CardDescription>
-          </div>
-          {!frameworksNoteDismissed ? (
-            <aside className="relative border-t border-border/50 pt-3 pr-9 text-[11px] leading-normal tracking-wide text-muted-foreground/85">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-1.5 size-7 text-muted-foreground hover:text-foreground"
-                onClick={dismissFrameworksNote}
-                aria-label="Dismiss note"
-              >
-                <X className="size-3.5" aria-hidden />
-              </Button>
-              <p className="italic">
-                <span className="not-italic text-muted-foreground">Note:</span>{" "}
-                Whether you progress the enrollment yourself in the dashboard or choose{" "}
-                <span className="font-medium text-muted-foreground not-italic">
-                  assisted assessment
-                </span>
-                , both are subject to official approval and may involve inspection and audit. If you choose assisted
-                assessment, our technical teams take it forward and physical inspection may be part of that process.
-              </p>
-            </aside>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          {assessments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-              <Shield className="mb-3 h-10 w-10 text-muted-foreground/60" />
-              <p className="text-sm font-medium text-muted-foreground">No frameworks yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Select a framework from the list on the right to add it to your company.
-              </p>
+    <Card className="lg:col-span-4">
+      <CardHeader className="space-y-3">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            Your frameworks
+          </CardTitle>
+          <CardDescription className="mt-2">
+            Frameworks your company has chosen. Open one to work through controls; when an enrollment is not started or
+            in progress, you can start{" "}
+            <span className="font-medium text-foreground">assisted assessment</span> for the whole framework.
+          </CardDescription>
+        </div>
+        {!frameworksNoteDismissed ? (
+          <aside className="relative border-t border-border/50 pt-3 pr-9 text-[11px] leading-normal tracking-wide text-muted-foreground/85">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-1.5 size-7 text-muted-foreground hover:text-foreground"
+              onClick={dismissFrameworksNote}
+              aria-label="Dismiss note"
+            >
+              <X className="size-3.5" aria-hidden />
+            </Button>
+            <p className="italic">
+              <span className="not-italic text-muted-foreground">Note:</span>{" "}
+              Whether you progress the enrollment yourself in the dashboard or choose{" "}
+              <span className="font-medium text-muted-foreground not-italic">
+                assisted assessment
+              </span>
+              , both are subject to official approval and may involve inspection and audit. If you choose assisted
+              assessment, our technical teams take it forward and physical inspection may be part of that process.
+            </p>
+          </aside>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-12 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive/70" />
+            <div>
+              <p className="text-sm font-medium">Couldn&apos;t load your frameworks</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Something went wrong on our end.</p>
             </div>
-          ) : (
-            <ul className="space-y-4">
-              {assessments.map((assessment) => {
-                const progress = parseProgress(assessment.progress)
-                const variant = statusVariant(assessment.status)
-                const showAssistedButton = isAssistedAssessmentEligibleForCompanyAdmin(assessment.status)
-                return (
-                  <li key={assessment.id} className="overflow-hidden rounded-lg border">
-                    <div className="flex flex-col sm:flex-row sm:items-stretch">
-                      <Link
-                        href={`/dashboard/assessments/${assessment.id}`}
-                        className={cn(
-                          "group flex min-w-0 flex-1 flex-col gap-3 p-4 transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
-                          progress === 100 && "border-primary/20 bg-primary/5 sm:border-l-4 sm:border-l-primary"
-                        )}
-                        aria-label={`Open assessment ${assessment.framework.name}`}
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium leading-tight group-hover:underline">
-                                {assessment.framework.name}
-                              </span>
-                              <Badge variant={variant} className="shrink-0 text-xs">
-                                {assessment.status.replace(/_/g, " ")}
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => mutate()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
+        ) : assessments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
+            <Shield className="mb-3 h-10 w-10 text-muted-foreground/60" />
+            <p className="text-sm font-medium text-muted-foreground">No frameworks yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Select a framework from the list on the right to add it to your company.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {assessments.map((assessment) => {
+              const progress = parseProgress(assessment.progress)
+              const variant = statusVariant(assessment.status)
+              const isStale = progress < 100 && daysSince(assessment.updatedAt) >= STALE_AFTER_DAYS
+              return (
+                <li key={assessment.id} className="overflow-hidden rounded-lg border">
+                  <div className="flex flex-col sm:flex-row sm:items-stretch">
+                    <Link
+                      href={`/dashboard/assessments/${assessment.id}`}
+                      className={cn(
+                        "group flex min-w-0 flex-1 flex-col gap-3 p-4 transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
+                        progress === 100 && "border-primary/20 bg-primary/5 sm:border-l-4 sm:border-l-primary"
+                      )}
+                      aria-label={`Open assessment ${assessment.framework.name}`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium leading-tight group-hover:underline">
+                              {assessment.framework.name}
+                            </span>
+                            <Badge variant={variant} className="shrink-0 text-xs">
+                              {assessment.status.replace(/_/g, " ")}
+                            </Badge>
+                            {isStale ? (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 gap-1 border-amber-300 text-xs text-amber-700 dark:border-amber-800 dark:text-amber-400"
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                                Needs attention
                               </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {assessment.year}
-                              </span>
-                              <span>Updated {formatDate(assessment.updatedAt)}</span>
-                            </div>
+                            ) : null}
                           </div>
-                          <div className="flex shrink-0 items-center gap-3 sm:w-44">
-                            <Progress value={progress} className="h-2 flex-1" />
-                            <span
-                              className={cn(
-                                "w-10 shrink-0 text-end tabular-nums text-sm font-medium",
-                                progress === 100 ? "text-primary" : "text-muted-foreground"
-                              )}
-                            >
-                              {progress}%
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {assessment.year}
+                            </span>
+                            <span className={isStale ? "text-amber-700 dark:text-amber-400" : undefined}>
+                              Updated {formatDate(assessment.updatedAt)}
                             </span>
                           </div>
                         </div>
-                      </Link>
-                      {showAssistedButton ? (
-                        <div className="flex items-center justify-center border-t bg-muted/20 p-3 sm:w-56 sm:shrink-0 sm:border-t-0 sm:border-l sm:bg-muted/30 sm:px-4">
-                          <Button
-                            type="button"
-                            variant="default"
-                            size="default"
-                            className="w-full gap-2 shadow-sm"
-                            disabled={!activeCompany?.id}
-                            onClick={() => setAssistedDialog(assessment)}
+                        <div className="flex shrink-0 items-center gap-3 sm:w-44">
+                          <Progress value={progress} className="h-2 flex-1" />
+                          <span
+                            className={cn(
+                              "w-10 shrink-0 text-end tabular-nums text-sm font-medium",
+                              progress === 100 ? "text-primary" : "text-muted-foreground"
+                            )}
                           >
-                            <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden />
-                            Assisted assessment
-                          </Button>
+                            {progress}%
+                          </span>
                         </div>
-                      ) : null}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <AlertDialog open={!!assistedDialog} onOpenChange={(open) => !open && setAssistedDialog(null)}>
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Assisted assessment?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 text-left text-sm text-muted-foreground">
-                <p>
-                  This starts{" "}
-                  <span className="font-medium text-foreground">framework-wide assisted assessment</span> for{" "}
-                  <span className="font-medium text-foreground">{assistedDialog?.framework.name}</span> (
-                  {assistedDialog?.year}). It applies to the whole enrollment, not individual controls.
-                </p>
-                <p className="text-foreground">
-                  <span className="font-semibold">From here, completing this assessment rests with TrustNet.</span> Our team
-                  will help you finish the enrollment, gathering evidence through{" "}
-                  <span className="font-medium">
-                    physical (on-site) engagement and remote communication
-                  </span>{" "}
-                  as appropriate.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={assistedSubmitting}>Cancel</AlertDialogCancel>
-            <Button type="button" disabled={assistedSubmitting} onClick={submitAssistedRequest}>
-              {assistedSubmitting ? "Submitting…" : "Submit"}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+                      </div>
+                    </Link>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -12,7 +12,6 @@ import {
 import {
   LayoutDashboard,
   Users,
-  Settings,
   Shield,
   CheckSquare,
   CreditCard,
@@ -36,13 +35,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { BrandLogo } from "@/components/brand-logo"
 import { HexagonPatternLeft } from "@/components/shared/HexagonPatternLeft"
 import { AiAssistantChat } from "@/components/shared/AiAssistantChat"
+import { CommandMenu } from "@/components/shared/CommandMenu"
 import { activeCompanyAtom, authSessionAtom } from "@/lib/store/auth"
 import { authSessionIsTechnicalAdmin, formatCreditBalance, formatZmwAmount, getWalletCreditBalance } from "@/lib/constants/functions"
-import { fetchCompanyWallet } from "@/lib/actions/wallet"
-import type { CompanyWalletResponse } from "@/lib/types/wallet"
+import { useCompanyWallet } from "@/hooks/use-company-wallet"
 import { useAtomValue } from "jotai"
 
 interface SidebarItem {
@@ -71,10 +69,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const activeCompany = useAtomValue(activeCompanyAtom)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
-  const [wallet, setWallet] = React.useState<CompanyWalletResponse | null>(null)
-  const [walletLoading, setWalletLoading] = React.useState(false)
+  const [aiChatOpen, setAiChatOpen] = React.useState(false)
   const isTechnicalAdmin = authSessionIsTechnicalAdmin(authSession)
   const showCompanyWallet = mounted && !isTechnicalAdmin
+  const { data: wallet, isLoading: walletLoading } = useCompanyWallet(
+    showCompanyWallet ? activeCompany?.id : null
+  )
   const navItems = isTechnicalAdmin ? technicalAdminSidebarItems : sidebarItems
   const user = authSession?.user
   const userName = user?.name || `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Admin User"
@@ -91,31 +91,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     setMounted(true)
   }, [])
 
-  React.useEffect(() => {
-    if (!showCompanyWallet || !activeCompany?.id) {
-      setWallet(null)
-      setWalletLoading(false)
-      return
-    }
-
-    let ignore = false
-    setWalletLoading(true)
-    fetchCompanyWallet(activeCompany.id)
-      .then((data) => {
-        if (!ignore) setWallet(data)
-      })
-      .catch(() => {
-        if (!ignore) setWallet(null)
-      })
-      .finally(() => {
-        if (!ignore) setWalletLoading(false)
-      })
-
-    return () => {
-      ignore = true
-    }
-  }, [activeCompany?.id, showCompanyWallet])
-
   return (
     <div className="relative flex min-h-screen flex-col min-w-0">
       <HexagonPatternLeft width="20%" className="top-14 h-[calc(100vh-3.5rem)] hidden sm:block" />
@@ -127,9 +102,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               className="flex shrink-0 items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Dashboard home"
             >
-              <BrandLogo width={480} height={128} priority />
+              {/* <BrandLogo width={480} height={128} priority className="h-6 sm:h-7" /> */}
             </Link>
-            <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
+            <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -141,11 +116,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <item.icon className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate">{item.title}</span>
                 </Link>
               ))}
             </nav>
+          </div>
+
+          <div className="hidden min-w-0 flex-1 justify-center sm:flex">
+            <CommandMenu
+              navItems={navItems}
+              showWallet={showCompanyWallet}
+              onAskTrustNet={() => setAiChatOpen(true)}
+            />
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -271,7 +254,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-9 w-9 min-h-9 min-w-9"
+              className="lg:hidden h-9 w-9 min-h-9 min-w-9"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={isMobileMenuOpen}
@@ -285,12 +268,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {isMobileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 top-14 z-40 bg-black/50 backdrop-sm md:hidden"
+            className="fixed inset-0 top-14 z-40 bg-black/50 backdrop-sm lg:hidden"
             aria-hidden
             onClick={() => setIsMobileMenuOpen(false)}
           />
           <div
-            className="fixed inset-x-2 top-14 z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-background md:hidden"
+            className="fixed inset-x-2 top-14 z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-background lg:hidden"
             role="dialog"
             aria-label="Main navigation"
           >
@@ -307,7 +290,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   )}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
+                  <item.icon className="h-5 w-5 shrink-0 text-primary" />
                   {item.title}
                 </Link>
               ))}
@@ -320,7 +303,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
 
-      <AiAssistantChat />
+      <AiAssistantChat open={aiChatOpen} onOpenChange={setAiChatOpen} />
 
       <Popover>
         <PopoverTrigger asChild>

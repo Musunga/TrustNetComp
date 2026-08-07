@@ -21,7 +21,7 @@ export function AssessmentComplianceReportSkeleton() {
               </ul>
             </div>
             <div className="shrink-0 max-sm:w-full max-sm:flex max-sm:justify-end">
-              <Skeleton className="h-[4.85rem] w-[8rem] rounded-sm shadow-sm border border-neutral-200" />
+              <Skeleton className="h-[4.85rem] w-32 rounded-sm shadow-sm border border-neutral-200" />
             </div>
           </div>
         </header>

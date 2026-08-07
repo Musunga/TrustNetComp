@@ -31,13 +31,13 @@ export function BrandLogo({
   priority,
 }: BrandLogoProps) {
   return (
-    <div className={cn('inline-flex items-center', className)} style={{ width, height }}>
+    <div className={cn('inline-flex h-8 w-auto max-w-full items-center', className)}>
       <Image
         src={lightSrc}
         alt={alt}
         width={width}
         height={height}
-        className="h-full w-full object-contain dark:hidden"
+        className="h-full w-auto max-w-full object-contain dark:hidden"
         priority={priority}
       />
       <Image
@@ -45,7 +45,7 @@ export function BrandLogo({
         alt={alt}
         width={width}
         height={height}
-        className="hidden h-full w-full object-contain dark:inline-block"
+        className="hidden h-full w-auto max-w-full object-contain dark:inline-block"
         priority={priority}
       />
     </div>

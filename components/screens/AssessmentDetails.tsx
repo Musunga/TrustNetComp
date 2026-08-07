@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { assignControlProgress, submitAssessmentForReview } from "@/lib/actions/compliance-progress"
 import { fetchCompanyMembers } from "@/lib/actions/companies"
 import { fetchAssessmentDetails, patchComplianceProgress } from "@/lib/actions/frameworks"
+import { requestAssistedAssessment } from "@/lib/actions/assisted-assessments"
 import type {
   AssessmentDetail,
   AssessmentControl,
@@ -19,6 +20,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Table,
   TableBody,
@@ -60,6 +70,7 @@ import {
   SendHorizontal,
   FileText,
   Award,
+  ClipboardCheck,
 } from "lucide-react"
 import { getApiErrorMessage } from "@/lib/api"
 import {
@@ -67,6 +78,7 @@ import {
   getAssessmentControlsCompletionCounts,
   isCompliantComplianceStatusCode,
   isAssessmentWorkflowCompleted,
+  isAssistedAssessmentEligibleForCompanyAdmin,
   statusVariant,
 } from "@/lib/constants/functions"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
@@ -152,7 +164,7 @@ function FunctionSection({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-8 w-24 py-2 text-xs font-medium text-muted-foreground">Code</TableHead>
-            <TableHead className="h-8 min-w-[280px] py-2 text-xs font-medium text-muted-foreground">
+            <TableHead className="h-8 min-w-70 py-2 text-xs font-medium text-muted-foreground">
               Question
             </TableHead>
             <TableHead className="h-8 w-28 py-2 text-xs font-medium text-muted-foreground">Status</TableHead>
@@ -187,7 +199,7 @@ function FunctionSection({
                     <TableCell className="py-2 font-mono text-xs text-muted-foreground">
                       {control.code}
                     </TableCell>
-                    <TableCell className="min-w-[280px] max-w-[50%] py-2 text-sm">
+                    <TableCell className="min-w-70 max-w-[50%] py-2 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="whitespace-normal wrap-break-word">
                           {control.question}
@@ -277,6 +289,8 @@ export default function AssessmentDetails({ id }: { id: string }) {
   const [assigneeLoading, setAssigneeLoading] = useState(false)
   const [frameworkCardOpen, setFrameworkCardOpen] = useState(false)
   const [certificateSheetOpen, setCertificateSheetOpen] = useState(false)
+  const [assistedDialogOpen, setAssistedDialogOpen] = useState(false)
+  const [assistedSubmitting, setAssistedSubmitting] = useState(false)
 
   const { activeViewId, navigateTo, navigateBack, direction } =
     useViewOrchestrator<PageViews>("controlFunctions")
@@ -317,6 +331,27 @@ export default function AssessmentDetails({ id }: { id: string }) {
       toast.error(getApiErrorMessage(e) ?? "Could not send assessment for review.")
     } finally {
       setSendForReviewLoading(false)
+    }
+  }
+
+  async function submitAssistedRequest() {
+    if (!assessment) return
+    setAssistedSubmitting(true)
+    try {
+      const companyFrameworkId = assessment.companyFrameworkId?.trim() || assessment.id
+      await requestAssistedAssessment({
+        companyId: assessment.companyId,
+        companyFrameworkId,
+      })
+      toast.success("Assisted assessment submitted", {
+        description: `We recorded assisted assessment for ${assessment.framework.name}.`,
+      })
+      setAssistedDialogOpen(false)
+      await refetchAssessment()
+    } catch (e) {
+      toast.error("Submission failed", { description: getApiErrorMessage(e) ?? "Something went wrong." })
+    } finally {
+      setAssistedSubmitting(false)
     }
   }
 
@@ -458,6 +493,7 @@ export default function AssessmentDetails({ id }: { id: string }) {
     !isAssessmentStatusLikelyInReviewPipeline(displayStatus) &&
     isAssessmentWorkComplete(assessmentCompletedControls, totalControls)
 
+  const showAssistedAssessment = isAssistedAssessmentEligibleForCompanyAdmin(displayStatus)
   const showViewCertificate = isAssessmentWorkflowCompleted(displayStatus)
   const certificateIdForLink = assessment.certificateId?.trim() || ""
   const assessmentStatusBadgeVariantRaw = statusVariant(displayStatus)
@@ -777,6 +813,17 @@ export default function AssessmentDetails({ id }: { id: string }) {
               View report
             </Link>
           </Button>
+          {showAssistedAssessment ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setAssistedDialogOpen(true)}
+            >
+              <ClipboardCheck className="h-4 w-4" aria-hidden />
+              Assisted assessment
+            </Button>
+          ) : null}
           {showSendForReview ? (
             <Button
               type="button"
@@ -894,6 +941,38 @@ export default function AssessmentDetails({ id }: { id: string }) {
           </SheetContent>
         </Sheet>
       ) : null}
+
+      <AlertDialog open={assistedDialogOpen} onOpenChange={setAssistedDialogOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assisted assessment?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left text-sm text-muted-foreground">
+                <p>
+                  This starts{" "}
+                  <span className="font-medium text-foreground">framework-wide assisted assessment</span> for{" "}
+                  <span className="font-medium text-foreground">{assessment.framework.name}</span> (
+                  {assessment.year}). It applies to the whole enrollment, not individual controls.
+                </p>
+                <p className="text-foreground">
+                  <span className="font-semibold">From here, completing this assessment rests with TrustNet.</span> Our team
+                  will help you finish the enrollment, gathering evidence through{" "}
+                  <span className="font-medium">
+                    physical (on-site) engagement and remote communication
+                  </span>{" "}
+                  as appropriate.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assistedSubmitting}>Cancel</AlertDialogCancel>
+            <Button type="button" disabled={assistedSubmitting} onClick={() => void submitAssistedRequest()}>
+              {assistedSubmitting ? "Submitting…" : "Submit"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

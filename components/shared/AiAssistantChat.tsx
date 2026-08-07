@@ -1,12 +1,19 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { useAtomValue } from "jotai"
 import { Bot, Loader2, Send, Trash2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import activeChatImage from "@/assets/images/ActiveChat.png"
+import avatarImage from "@/assets/images/avatar.png"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Marker, MarkerContent } from "@/components/ui/marker"
+import { Message, MessageAvatar, MessageContent } from "@/components/ui/message"
 import {
   Sheet,
   SheetContent,
@@ -15,7 +22,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { cn } from "@/lib/utils"
 import { authSessionAtom } from "@/lib/store/auth"
 
 const CHAT_API_URL = "https://trustnet-legal-assistant.azurewebsites.net/api/chat"
@@ -74,9 +80,17 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-export function AiAssistantChat() {
+export function AiAssistantChat({
+  open: openProp,
+  onOpenChange,
+}: {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
   const authSession = useAtomValue(authSessionAtom)
-  const [open, setOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const open = openProp ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const [messages, setMessages] = React.useState<ChatMessage[]>([INITIAL_MESSAGE])
   const [input, setInput] = React.useState("")
   const [isSending, setIsSending] = React.useState(false)
@@ -84,6 +98,18 @@ export function AiAssistantChat() {
   const [error, setError] = React.useState<string | null>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const sessionIdRef = React.useRef<string | null>(null)
+
+  const userName =
+    authSession?.user?.name ||
+    `${authSession?.user?.firstName ?? ""} ${authSession?.user?.lastName ?? ""}`.trim() ||
+    "You"
+  const userInitials =
+    userName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U"
 
   if (!sessionIdRef.current) {
     sessionIdRef.current =
@@ -162,8 +188,8 @@ export function AiAssistantChat() {
         <SheetHeader className="border-b px-4 py-3">
           <div className="flex items-center justify-between gap-2 pr-6">
             <SheetTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              AI Assistant
+              <Image src={activeChatImage} alt="" width={120} height={40} className="h-28 w-auto rounded-sm" />
+              {/* AI Assistant */}
             </SheetTitle>
             <Button
               type="button"
@@ -181,31 +207,34 @@ export function AiAssistantChat() {
               Clear chat
             </Button>
           </div>
-          <SheetDescription>Ask about compliance & legal requirements</SheetDescription>
+          {/* <SheetDescription>Ask about compliance & legal requirements</SheetDescription> */}
         </SheetHeader>
 
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {messages.map((m) => (
-            <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                  m.role === "user"
-                    ? "whitespace-pre-wrap bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
-                )}
-              >
-                {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
-              </div>
-            </div>
+            <Message key={m.id} align={m.role === "user" ? "end" : "start"}>
+              <MessageAvatar>
+                <Avatar>
+                  {m.role === "assistant" ? <AvatarImage src={avatarImage.src} alt="TrustNet" /> : null}
+                  <AvatarFallback>{m.role === "assistant" ? "AI" : userInitials}</AvatarFallback>
+                </Avatar>
+              </MessageAvatar>
+              <MessageContent>
+                <Bubble variant={m.role === "user" ? "default" : "muted"}>
+                  <BubbleContent>
+                    {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
+                  </BubbleContent>
+                </Bubble>
+              </MessageContent>
+            </Message>
           ))}
           {isSending ? (
-            <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-2xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <Marker role="status">
+              <MarkerContent className="flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Thinking...
-              </div>
-            </div>
+                <span className="font-medium text-foreground">TrustNet</span> is typing...
+              </MarkerContent>
+            </Marker>
           ) : null}
         </div>
 

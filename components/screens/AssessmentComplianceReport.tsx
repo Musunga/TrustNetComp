@@ -188,7 +188,7 @@ export function AssessmentComplianceReport({ data }: { data: AssessmentReportDat
               </p>
               <div className="mt-2 overflow-x-auto">
                 <table
-                  className="w-full min-w-[520px] border-collapse border text-[8pt]"
+                  className="w-full min-w-130 border-collapse border text-[8pt]"
                   style={{ borderColor: pdfLine }}
                 >
                   <thead>

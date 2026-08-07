@@ -1,29 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { fetchAllFrameworks } from "@/lib/actions/frameworks"
-import { Framework } from "@/lib/types"
-import { useState, useEffect } from "react"
+import { useFrameworksCatalog } from "@/hooks/use-frameworks-catalog"
 import { Button } from "../ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card"
 import { Skeleton } from "../ui/skeleton"
 import SelectFrameworkButton from "../shared/SelectFrameworkButton"
-import { Eye } from "lucide-react"
+import { AlertCircle, Eye, RefreshCw } from "lucide-react"
 
 const FrameworksList = () => {
-  const [frameworks, setFrameworks] = useState<Framework[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetchAllFrameworks()
-      .then((data) => setFrameworks(data))
-      .catch(() => setFrameworks([]))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: frameworks, isLoading: loading, error, mutate } = useFrameworksCatalog()
 
   if (loading) {
     return (
-      <Card className="col-span-3">
+      <Card className="lg:col-span-3">
         <CardHeader>
           <CardTitle>Compliance Frameworks</CardTitle>
           <CardDescription>Available frameworks for your next assessment</CardDescription>
@@ -44,13 +34,25 @@ const FrameworksList = () => {
   }
 
   return (
-    <Card className="col-span-3">
+    <Card className="lg:col-span-3">
       <CardHeader>
         <CardTitle>Compliance Frameworks</CardTitle>
         <CardDescription>Available frameworks for your next assessment</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {frameworks.length === 0 ? (
+        {error ? (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-10 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive/70" />
+            <div>
+              <p className="text-sm font-medium">Couldn&apos;t load frameworks</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Something went wrong on our end.</p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => mutate()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
+        ) : frameworks.length === 0 ? (
           <p className="text-sm text-muted-foreground">No frameworks available.</p>
         ) : (
           frameworks.map((fw) => (

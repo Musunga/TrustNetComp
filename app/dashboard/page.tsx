@@ -60,17 +60,23 @@ export default function DashboardPage() {
 }
 
 function CompanyAdminDashboard() {
+  const authSession = useAtomValue(authSessionAtom)
+  const user = authSession?.user
+  const displayName = user?.firstName || user?.name?.split(" ")[0] || "there"
+
   return (
     <div className="flex flex-col space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">Welcome back, Admin. Here is your company's compliance overview.</p>
+          <p className="text-muted-foreground">
+            Welcome back, {displayName}. Here is your company's compliance overview.
+          </p>
         </div>
         <CompanySelector />
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between md:divide-x divide-border">
+      <div className="grid gap-4 sm:grid-cols-2">
         <MemberBreakdown />
         <PendingTasksSummary />
       </div>

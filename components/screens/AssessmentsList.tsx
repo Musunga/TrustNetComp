@@ -16,6 +16,12 @@ import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
 import { formatDate, parseProgress, statusVariant, resolveCompanyFrameworkEnrollmentId } from "@/lib/constants/functions"
 
+const badgeVariants = ["default", "destructive", "outline", "secondary", "warning", "success"] as const
+type BadgeVariant = (typeof badgeVariants)[number]
+
+const getBadgeVariant = (value: string): BadgeVariant =>
+  badgeVariants.includes(value as BadgeVariant) ? (value as BadgeVariant) : "secondary"
+
 const AssessmentsList = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [loading, setLoading] = useState(true)

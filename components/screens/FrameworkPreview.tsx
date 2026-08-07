@@ -27,7 +27,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Shield, AlertCircle, RefreshCw, ClipboardList, Calendar, ChevronDown, ArrowLeft } from "lucide-react"
 import { useViewOrchestrator } from "@/hooks/use-pageView"
 import { ViewDefinition, ViewOrchestrator } from "../shared/Pageview"
-import SelectFrameworkButton from "../shared/SelectFrameworkButton"
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -124,10 +123,10 @@ function PreviewFunctionSection({ fn }: { fn: FrameworkPreviewFunction }) {
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-8 w-24 py-2 text-xs font-medium text-muted-foreground">Code</TableHead>
-            <TableHead className="h-8 min-w-[280px] py-2 text-xs font-medium text-muted-foreground">
+            <TableHead className="h-8 min-w-70 py-2 text-xs font-medium text-muted-foreground">
               Question
             </TableHead>
-            <TableHead className="h-8 min-w-[180px] py-2 text-xs font-medium text-muted-foreground">
+            <TableHead className="h-8 min-w-45 py-2 text-xs font-medium text-muted-foreground">
               Required evidence
             </TableHead>
           </TableRow>
@@ -148,12 +147,12 @@ function PreviewFunctionSection({ fn }: { fn: FrameworkPreviewFunction }) {
                   <TableCell className="py-2 font-mono text-xs text-muted-foreground">
                     {control.code}
                   </TableCell>
-                  <TableCell className="min-w-[280px] max-w-[50%] py-2 text-sm">
+                  <TableCell className="min-w-70 max-w-[50%] py-2 text-sm">
                     <span className="whitespace-normal wrap-break-word">
                       {control.question}
                     </span>
                   </TableCell>
-                  <TableCell className="min-w-[180px] py-2 text-xs text-muted-foreground">
+                  <TableCell className="min-w-45 py-2 text-xs text-muted-foreground">
                     {control.requiredEvidence?.length
                       ? control.requiredEvidence.join(", ")
                       : "—"}
@@ -170,7 +169,13 @@ function PreviewFunctionSection({ fn }: { fn: FrameworkPreviewFunction }) {
 
 type PreviewViews = "controlFunctions" | "functionDetail"
 
-export default function FrameworkPreview({ id }: { id: string }) {
+export default function FrameworkPreview({
+  id,
+  onFrameworkLoaded,
+}: {
+  id: string
+  onFrameworkLoaded?: (framework: { code: string; name: string } | null) => void
+}) {
   const [framework, setFramework] = useState<FrameworkPreviewResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -183,6 +188,7 @@ export default function FrameworkPreview({ id }: { id: string }) {
   function load() {
     setError(null)
     setLoading(true)
+    onFrameworkLoaded?.(null)
     fetchFrameworkPreview(id)
       .then(setFramework)
       .catch(() => setError("Failed to load framework preview."))
@@ -192,6 +198,10 @@ export default function FrameworkPreview({ id }: { id: string }) {
   useEffect(() => {
     load()
   }, [id])
+
+  useEffect(() => {
+    if (framework) onFrameworkLoaded?.({ code: framework.code, name: framework.name })
+  }, [framework])
 
   if (loading) {
     return (
@@ -309,7 +319,6 @@ export default function FrameworkPreview({ id }: { id: string }) {
                 />
               </button>
             </CollapsibleTrigger>
-            <SelectFrameworkButton framework={{ code: framework.code, name: framework.name }} />
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="space-y-3 pt-0">

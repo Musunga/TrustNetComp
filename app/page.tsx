@@ -1,18 +1,20 @@
 import type React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle2, Shield, Zap, BarChart3, Users } from "lucide-react"
+import { ArrowRight, CheckCircle2, Shield, Zap, BarChart3, Users, Sparkles } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { HeroConnectionBackground } from "@/components/hero-connection"
 import { HexagonBackground } from "@/components/animate-ui/components/backgrounds/hexagon"
 import { BrandLogo } from "@/components/brand-logo"
+import characterImage from "@/assets/images/character.png"
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-16 flex items-center border-b sticky top-0 bg-background/95 backdrop-blur z-50">
         <Link className="flex items-center justify-center" href="/">
-          <BrandLogo width={480} height={128} priority />
+          <BrandLogo width={480} height={128} priority className="h-7 sm:h-8" />
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
           <Link className="text-sm font-medium hover:text-primary transition-colors" href="#features">
@@ -135,6 +137,56 @@ export default function LandingPage() {
               ].map((fw) => (
                 <FrameworkBadge key={fw.name} name={fw.name} desc={fw.desc} />
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full py-12 md:py-24 lg:py-32">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-10 md:grid-cols-2 md:items-center md:gap-16">
+              <div className="order-2 space-y-5 md:order-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1 text-sm font-medium text-primary">
+                  <Sparkles className="h-4 w-4" />
+                  AI-Powered Assistant
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+                  Meet TrustNet, your compliance co-pilot
+                </h2>
+                <p className="text-muted-foreground md:text-lg">
+                  Every workspace comes with a built-in AI chat assistant that understands each
+                  framework in plain language — so your team spends less time decoding
+                  requirements and more time resolving them.
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Explains what each control actually requires, in plain English",
+                    "Points you to the right next step to resolve open items",
+                    "Available right inside your dashboard, any time you need it",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-sm text-muted-foreground">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/login">
+                  <Button size="lg" className="mt-2 px-8">
+                    Try the AI Assistant
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="order-1 flex items-center justify-center md:order-2">
+                <div className="relative">
+                  <div className="absolute inset-0 -z-10 rounded-full bg-primary/10 blur-3xl" />
+                  <Image
+                    src={characterImage}
+                    alt="TrustNet AI assistant"
+                    className="h-auto w-64 md:w-80"
+                    priority={false}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
