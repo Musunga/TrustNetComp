@@ -12,9 +12,9 @@ import characterImage from "@/assets/images/character.png"
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b sticky top-0 bg-background/95 backdrop-blur z-50">
+      <header className="px-4 lg:px-6 h-16 sm:h-20 flex items-center border-b sticky top-0 bg-background/95 backdrop-blur z-50">
         <Link className="flex items-center justify-center" href="/">
-          <BrandLogo width={480} height={128} priority className="h-7 sm:h-8" />
+          <BrandLogo width={372} height={120} priority className="h-10 sm:h-12" />
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
           <Link className="text-sm font-medium hover:text-primary transition-colors" href="#features">
@@ -22,6 +22,9 @@ export default function LandingPage() {
           </Link>
           <Link className="text-sm font-medium hover:text-primary transition-colors" href="#frameworks">
             Frameworks
+          </Link>
+          <Link className="text-sm font-medium hover:text-primary transition-colors" href="/about">
+            About Us
           </Link>
           <ModeToggle />
           <Link href="/login">
@@ -215,6 +218,9 @@ export default function LandingPage() {
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
         <p className="text-xs text-muted-foreground">© 2026 TrustNetComp, Inc. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
+          <Link className="text-xs hover:underline underline-offset-4" href="/about">
+            About
+          </Link>
           <Link className="text-xs hover:underline underline-offset-4" href="#">
             Terms of Service
           </Link>

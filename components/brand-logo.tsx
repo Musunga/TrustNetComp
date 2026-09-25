@@ -26,8 +26,8 @@ export function BrandLogo({
   darkSrc = DEFAULT_LOGO_WHITE,
   alt = 'TrustNetComp',
   className,
-  width = 120,
-  height = 32,
+  width = 372,
+  height = 120,
   priority,
 }: BrandLogoProps) {
   return (

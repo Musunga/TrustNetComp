@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
     pathname === "/reset-password" ||
     pathname === "/live-capture" ||
     pathname === "/"
-  const isPublicPage = isAuthPage || pathname.startsWith("/invited")
+  const isPublicPage = isAuthPage || pathname === "/about" || pathname.startsWith("/invited")
 
   if (!isLoggedIn && !isPublicPage) {
     return NextResponse.redirect(new URL("/login", request.url))

@@ -15,7 +15,7 @@ export function AuthMarketingPanel() {
       />
       <div className="absolute inset-0 bg-primary/85" />
       <div className="relative z-20 flex items-center text-lg font-medium">
-        <BrandLogo width={880} height={256} priority className="h-10" />
+        <BrandLogo width={372} height={120} priority className="h-14 sm:h-16" />
       </div>
       <div className="relative z-20 mt-auto">
         <blockquote className="space-y-2">
